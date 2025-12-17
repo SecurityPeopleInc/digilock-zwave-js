@@ -1,0 +1,1974 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digilock Z-Wave Dashboard</title>
+    <style>
+      /* Design System - Dark Mode First */
+      :root {
+        /* Colors - Dark Mode Palette */
+        --bg-primary: #0a0a0a;
+        --bg-secondary: #161616;
+        --bg-tertiary: #1f1f1f;
+        --bg-elevated: #262626;
+
+        --border-primary: #2a2a2a;
+        --border-secondary: #3a3a3a;
+
+        --text-primary: #ffffff;
+        --text-secondary: #a3a3a3;
+        --text-tertiary: #737373;
+
+        --accent-primary: #525252;
+        --accent-hover: #404040;
+
+        /* Status Colors - Subtle */
+        --status-active: #16a34a;
+        --status-inactive: #dc2626;
+        --status-connected: #2563eb;
+        --status-warning: #ca8a04;
+
+        /* Alert Colors - Dark Mode */
+        --alert-success-bg: #1a2e1a;
+        --alert-success-border: #16a34a;
+        --alert-success-text: #86efac;
+
+        --alert-error-bg: #2e1a1a;
+        --alert-error-border: #dc2626;
+        --alert-error-text: #fca5a5;
+
+        --alert-info-bg: #1a1e2e;
+        --alert-info-border: #2563eb;
+        --alert-info-text: #93c5fd;
+
+        /* Spacing Tokens */
+        --spacing-xs: 4px;
+        --spacing-sm: 8px;
+        --spacing-md: 12px;
+        --spacing-lg: 16px;
+        --spacing-xl: 24px;
+        --spacing-2xl: 32px;
+
+        /* Typography */
+        --font-size-xs: 12px;
+        --font-size-sm: 14px;
+        --font-size-base: 16px;
+        --font-size-lg: 18px;
+        --font-size-xl: 20px;
+        --font-size-2xl: 24px;
+        --font-size-3xl: 30px;
+
+        --font-weight-normal: 400;
+        --font-weight-medium: 500;
+        --font-weight-semibold: 600;
+        --font-weight-bold: 700;
+
+        /* Border Radius */
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+
+        /* Shadows */
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        min-height: 100vh;
+        line-height: 1.5;
+      }
+
+      /* Top Menu Bar */
+      .top-menu {
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-primary);
+        padding: var(--spacing-md) var(--spacing-xl);
+        display: flex;
+        gap: var(--spacing-lg);
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .menu-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm) var(--spacing-md);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--text-secondary);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        border: 1px solid transparent;
+        background: transparent;
+      }
+
+      .menu-item:hover {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+
+      .menu-item.active {
+        background: var(--bg-elevated);
+        color: var(--text-primary);
+        border-color: var(--border-secondary);
+      }
+
+      .menu-item-icon {
+        font-size: var(--font-size-lg);
+      }
+
+      /* Container */
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--spacing-xl);
+      }
+
+      /* Section Containers */
+      .section-container {
+        display: none;
+      }
+
+      .section-container.active {
+        display: block;
+      }
+
+      /* Header */
+      .header {
+        margin-bottom: var(--spacing-2xl);
+      }
+
+      .header h1 {
+        font-size: var(--font-size-3xl);
+        font-weight: var(--font-weight-bold);
+        margin-bottom: var(--spacing-sm);
+        color: var(--text-primary);
+      }
+
+      .header p {
+        font-size: var(--font-size-base);
+        color: var(--text-secondary);
+      }
+
+      /* Cards */
+      .card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-xl);
+        margin-bottom: var(--spacing-lg);
+        box-shadow: var(--shadow-md);
+      }
+
+      .card h2 {
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-semibold);
+        margin-bottom: var(--spacing-lg);
+        color: var(--text-primary);
+      }
+
+      .card h3 {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        margin-bottom: var(--spacing-md);
+        color: var(--text-primary);
+      }
+
+      /* Forms */
+      .form-group {
+        margin-bottom: var(--spacing-lg);
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: var(--spacing-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-primary);
+        font-size: var(--font-size-sm);
+      }
+
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
+        width: 100%;
+        padding: var(--spacing-md);
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        color: var(--text-primary);
+        transition: all 0.2s;
+        font-family: inherit;
+      }
+
+      .form-group input:focus,
+      .form-group select:focus,
+      .form-group textarea:focus {
+        outline: none;
+        border-color: var(--border-secondary);
+        box-shadow: 0 0 0 3px rgba(82, 82, 82, 0.1);
+      }
+
+      .form-group input::placeholder,
+      .form-group textarea::placeholder {
+        color: var(--text-tertiary);
+      }
+
+      .form-group small {
+        display: block;
+        margin-top: var(--spacing-xs);
+        color: var(--text-tertiary);
+        font-size: var(--font-size-xs);
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-lg);
+      }
+
+      .checkbox-group {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-md);
+        margin-top: var(--spacing-sm);
+      }
+
+      .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+      }
+
+      .checkbox-item input[type="checkbox"] {
+        width: auto;
+        cursor: pointer;
+        accent-color: var(--accent-primary);
+      }
+
+      .checkbox-item label {
+        margin-bottom: 0;
+        cursor: pointer;
+        font-weight: var(--font-weight-normal);
+      }
+
+      /* Buttons */
+      .btn {
+        padding: var(--spacing-md) var(--spacing-xl);
+        border: 1px solid transparent;
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        margin-right: var(--spacing-sm);
+        margin-bottom: var(--spacing-sm);
+      }
+
+      .btn:focus-visible {
+        outline: 2px solid var(--text-primary);
+        outline-offset: 2px;
+      }
+
+      .btn-primary {
+        background: var(--accent-primary);
+        color: var(--text-primary);
+        border-color: var(--accent-primary);
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+      }
+
+      .btn-success {
+        background: var(--status-active);
+        color: var(--text-primary);
+        border-color: var(--status-active);
+      }
+
+      .btn-success:hover:not(:disabled) {
+        background: #15803d;
+        border-color: #15803d;
+      }
+
+      .btn-danger {
+        background: var(--status-inactive);
+        color: var(--text-primary);
+        border-color: var(--status-inactive);
+      }
+
+      .btn-danger:hover:not(:disabled) {
+        background: #b91c1c;
+        border-color: #b91c1c;
+      }
+
+      .btn-secondary {
+        background: transparent;
+        color: var(--text-secondary);
+        border-color: var(--border-primary);
+      }
+
+      .btn-secondary:hover:not(:disabled) {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        border-color: var(--border-secondary);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Status Badges */
+      .status-badge {
+        display: inline-block;
+        padding: var(--spacing-xs) var(--spacing-md);
+        border-radius: 12px;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        margin-left: var(--spacing-sm);
+      }
+
+      .status-active {
+        background: rgba(22, 163, 74, 0.2);
+        color: #86efac;
+        border: 1px solid rgba(22, 163, 74, 0.3);
+      }
+
+      .status-inactive {
+        background: rgba(220, 38, 38, 0.2);
+        color: #fca5a5;
+        border: 1px solid rgba(220, 38, 38, 0.3);
+      }
+
+      .status-connected {
+        background: rgba(37, 99, 235, 0.2);
+        color: #93c5fd;
+        border: 1px solid rgba(37, 99, 235, 0.3);
+      }
+
+      /* Lists */
+      .entries-list {
+        margin-top: var(--spacing-lg);
+      }
+
+      .entry-item {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-md);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s;
+      }
+
+      .entry-item:hover {
+        border-color: var(--border-secondary);
+      }
+
+      .entry-info {
+        flex: 1;
+      }
+
+      .entry-info h3 {
+        margin-bottom: var(--spacing-sm);
+        color: var(--text-primary);
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .entry-info p {
+        color: var(--text-secondary);
+        font-size: var(--font-size-sm);
+        margin: var(--spacing-xs) 0;
+      }
+
+      .entry-actions {
+        display: flex;
+        gap: var(--spacing-sm);
+      }
+
+      .nodes-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: var(--spacing-lg);
+        margin-top: var(--spacing-lg);
+      }
+
+      .node-card {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-lg);
+        box-shadow: var(--shadow-sm);
+        transition: all 0.2s;
+      }
+
+      .node-card:hover {
+        border-color: var(--border-secondary);
+        box-shadow: var(--shadow-md);
+      }
+
+      .node-card h3 {
+        margin-bottom: var(--spacing-md);
+        font-size: var(--font-size-lg);
+        color: var(--text-primary);
+      }
+
+      .node-card p {
+        margin: var(--spacing-sm) 0;
+        color: var(--text-secondary);
+        font-size: var(--font-size-sm);
+      }
+
+      /* Alerts */
+      .alert {
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--spacing-lg);
+        border: 1px solid;
+        font-size: var(--font-size-sm);
+      }
+
+      .alert-success {
+        background: var(--alert-success-bg);
+        color: var(--alert-success-text);
+        border-color: var(--alert-success-border);
+      }
+
+      .alert-error {
+        background: var(--alert-error-bg);
+        color: var(--alert-error-text);
+        border-color: var(--alert-error-border);
+      }
+
+      .alert-info {
+        background: var(--alert-info-bg);
+        color: var(--alert-info-text);
+        border-color: var(--alert-info-border);
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .loading {
+        text-align: center;
+        padding: var(--spacing-xl);
+        color: var(--text-tertiary);
+        font-size: var(--font-size-sm);
+      }
+
+      /* MP Tab Styles */
+      .mp-tab {
+        margin-top: var(--spacing-lg);
+      }
+
+      .mp-tab textarea {
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        font-size: var(--font-size-xs);
+        line-height: 1.6;
+      }
+
+      .mp-tab-buttons {
+        display: flex;
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-lg);
+      }
+
+      .mp-tab-button {
+        padding: var(--spacing-sm) var(--spacing-md);
+        background: transparent;
+        border: 1px solid var(--border-primary);
+        color: var(--text-secondary);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: var(--font-size-sm);
+      }
+
+      .mp-tab-button.active {
+        background: var(--bg-elevated);
+        border-color: var(--border-secondary);
+        color: var(--text-primary);
+      }
+
+      .mp-tab-button:hover {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+
+      .mp-history-item {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        margin-bottom: var(--spacing-sm);
+        font-size: var(--font-size-sm);
+      }
+
+      .mp-history-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-primary);
+      }
+
+      .mp-history-item-time {
+        color: var(--text-tertiary);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-normal);
+      }
+
+      .mp-history-item-payload {
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        background: var(--bg-primary);
+        padding: var(--spacing-sm);
+        border-radius: var(--radius-sm);
+        word-break: break-all;
+        font-size: var(--font-size-xs);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-primary);
+      }
+
+      .mp-history-item-details {
+        margin-top: var(--spacing-sm);
+        color: var(--text-tertiary);
+        font-size: var(--font-size-xs);
+      }
+
+      /* WebSocket Log Chat Styles */
+      .ws-log-container {
+        display: flex;
+        flex-direction: column;
+        height: 80vh;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+      }
+
+      .ws-log-header {
+        padding: var(--spacing-md);
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .ws-log-header h3 {
+        margin: 0;
+        font-size: var(--font-size-base);
+        color: var(--text-primary);
+      }
+
+      .ws-log-controls {
+        display: flex;
+        gap: var(--spacing-sm);
+      }
+
+      .ws-log-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-md);
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+      }
+
+      .ws-log-message {
+        display: flex;
+        max-width: 80%;
+        animation: fadeIn 0.2s ease-in;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .ws-log-message.received {
+        align-self: flex-start;
+      }
+
+      .ws-log-message.sent {
+        align-self: flex-end;
+      }
+
+      .ws-message-bubble {
+        padding: var(--spacing-md);
+        border-radius: var(--radius-lg);
+        word-wrap: break-word;
+        position: relative;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .ws-log-message.received .ws-message-bubble {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        color: var(--text-primary);
+        border-bottom-left-radius: var(--radius-sm);
+      }
+
+      .ws-log-message.sent .ws-message-bubble {
+        background: var(--status-connected);
+        border: 1px solid rgba(37, 99, 235, 0.3);
+        color: var(--text-primary);
+        border-bottom-right-radius: var(--radius-sm);
+      }
+
+      .ws-message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-xs);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+      }
+
+      .ws-message-type {
+        color: var(--text-secondary);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .ws-message-time {
+        color: var(--text-tertiary);
+        font-weight: var(--font-weight-normal);
+      }
+
+      .ws-message-content {
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        font-size: var(--font-size-xs);
+        white-space: pre-wrap;
+        word-break: break-all;
+        line-height: 1.5;
+      }
+
+      .ws-log-empty {
+        text-align: center;
+        color: var(--text-tertiary);
+        padding: var(--spacing-2xl);
+        font-size: var(--font-size-sm);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .form-row {
+          grid-template-columns: 1fr;
+        }
+
+        .checkbox-group {
+          grid-template-columns: 1fr;
+        }
+
+        .top-menu {
+          flex-wrap: wrap;
+          padding: var(--spacing-sm) var(--spacing-md);
+        }
+
+        .container {
+          padding: var(--spacing-md);
+        }
+
+        .nodes-list {
+          grid-template-columns: 1fr;
+        }
+
+        .ws-log-container {
+          height: 500px;
+        }
+
+        .ws-log-message {
+          max-width: 95%;
+        }
+
+        .ws-log-header {
+          flex-direction: column;
+          gap: var(--spacing-sm);
+          align-items: flex-start;
+        }
+
+        .ws-log-controls {
+          width: 100%;
+          justify-content: space-between;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top Menu Bar -->
+    <nav class="top-menu" role="navigation" aria-label="Main navigation">
+      <button
+        class="menu-item active"
+        data-section="overview"
+        aria-label="Overview"
+        onclick="showSection('overview')"
+      >
+        <span>Overview</span>
+      </button>
+      <button
+        class="menu-item"
+        data-section="provisioning"
+        aria-label="Provisioning"
+        onclick="showSection('provisioning')"
+      >
+        <span>Provisioning</span>
+      </button>
+      <button
+        class="menu-item"
+        data-section="nodes"
+        aria-label="Nodes"
+        onclick="showSection('nodes')"
+      >
+        <span>Nodes</span>
+      </button>
+      <button
+        class="menu-item"
+        data-section="commands"
+        aria-label="Commands"
+        onclick="showSection('commands')"
+      >
+        <span>Commands</span>
+      </button>
+      <button
+        class="menu-item"
+        data-section="ws-log"
+        aria-label="WebSocket Log"
+        onclick="showSection('ws-log')"
+      >
+        <span>WebSocket Log</span>
+      </button>
+    </nav>
+
+    <div class="container">
+      <!-- Status Alert -->
+      <div id="statusAlert" class="alert hidden"></div>
+
+      <!-- Overview Section -->
+      <section
+        id="section-overview"
+        class="section-container active"
+        aria-labelledby="overview-heading"
+      >
+        <div class="header">
+          <h1 id="overview-heading">Smart Start Provisioner</h1>
+          <p>Provision and activate Z-Wave devices with Smart Start</p>
+        </div>
+
+        <div class="card">
+          <h2>Z-Wave Driver Status</h2>
+          <div id="driverStatus" style="margin-bottom: 20px">
+            <p>
+              <strong>Status:</strong>
+              <span id="driverStatusText" class="status-badge status-inactive"
+                >Checking...</span
+              >
+            </p>
+            <p style="margin-top: 10px; color: var(--text-secondary)">
+              <strong>Port:</strong> <span id="driverPortText">-</span>
+              <small
+                style="
+                  display: block;
+                  margin-top: 5px;
+                  color: var(--text-tertiary);
+                "
+              >
+                Configured via ZWAVE_PORT environment variable
+              </small>
+            </p>
+            <div id="startDriverSection" style="margin-top: 20px; display: none;">
+              <p style="color: var(--text-secondary); margin-bottom: 10px;">
+                The Z-Wave driver is not started. Click the button below to initialize it.
+              </p>
+              <button
+                id="startDriverBtn"
+                class="btn btn-primary"
+                onclick="startDriver()"
+              >
+                Start Z-Wave Driver
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Provisioning Section -->
+      <section
+        id="section-provisioning"
+        class="section-container"
+        aria-labelledby="provisioning-heading"
+      >
+        <div class="header">
+          <h1 id="provisioning-heading">Provisioning</h1>
+          <p>Add and manage Smart Start provisioning entries</p>
+        </div>
+
+        <div class="card">
+          <h2>Add Provisioning Entry</h2>
+          <form id="provisionForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="dsk">DSK (Device Specific Key) *</label>
+                <input
+                  type="text"
+                  id="dsk"
+                  name="dsk"
+                  placeholder="00000-00000-00000-00000-00000-00000-00000-00000"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="protocol">Protocol *</label>
+                <select id="protocol" name="protocol" required>
+                  <option value="ZWave">Z-Wave</option>
+                  <option value="ZWaveLongRange">Z-Wave Long Range</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="name">Name</label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  placeholder="Device name"
+                />
+              </div>
+              <div class="form-group">
+                <label for="location">Location</label>
+                <input
+                  type="text"
+                  id="location"
+                  name="location"
+                  placeholder="Device location"
+                />
+              </div>
+            </div>
+
+            <div
+              class="form-group"
+              id="securityClassesGroup"
+              style="display: block"
+            >
+              <label>Security Classes (for Z-Wave protocol only)</label>
+              <div class="checkbox-group">
+                <div class="checkbox-item">
+                  <input
+                    type="checkbox"
+                    id="s2AccessControl"
+                    name="s2AccessControl"
+                  />
+                  <label for="s2AccessControl">S2 Access Control</label>
+                </div>
+                <div class="checkbox-item">
+                  <input
+                    type="checkbox"
+                    id="s2Authenticated"
+                    name="s2Authenticated"
+                  />
+                  <label for="s2Authenticated">S2 Authenticated</label>
+                </div>
+                <div class="checkbox-item">
+                  <input
+                    type="checkbox"
+                    id="s2Unauthenticated"
+                    name="s2Unauthenticated"
+                  />
+                  <label for="s2Unauthenticated">S2 Unauthenticated</label>
+                </div>
+                <div class="checkbox-item">
+                  <input type="checkbox" id="s0Legacy" name="s0Legacy" />
+                  <label for="s0Legacy">S0 Legacy</label>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+              Add to Provisioning List
+            </button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2>Provisioning Entries</h2>
+          <div id="entriesList" class="entries-list">
+            <div class="loading">Loading...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Nodes Section -->
+      <section
+        id="section-nodes"
+        class="section-container"
+        aria-labelledby="nodes-heading"
+      >
+        <div class="header">
+          <h1 id="nodes-heading">Connected Nodes</h1>
+          <p>View all Z-Wave nodes connected to your network</p>
+        </div>
+
+        <div class="card">
+          <h2>Connected Nodes</h2>
+          <div id="nodesList" class="nodes-list">
+            <div class="loading">No nodes connected yet</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Commands Section -->
+      <section
+        id="section-commands"
+        class="section-container"
+        aria-labelledby="commands-heading"
+      >
+        <div class="header">
+          <h1 id="commands-heading">Manufacturer Proprietary Commands</h1>
+          <p>Send 32-byte Manufacturer Proprietary commands to Z-Wave nodes</p>
+        </div>
+
+        <div class="card">
+          <h2>Manufacturer Proprietary (CC 0x91) Commands</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 20px">
+            Send 32-byte Manufacturer Proprietary commands to Z-Wave nodes. The
+            vendor payload must be exactly 32 bytes (64 hex characters).
+          </p>
+
+          <div class="mp-tab-buttons">
+            <button
+              class="mp-tab-button active"
+              onclick="showMPTab('random')"
+              id="mpTabRandomBtn"
+            >
+              Random Payload (Testing)
+            </button>
+            <button
+              class="mp-tab-button"
+              onclick="showMPTab('custom')"
+              id="mpTabCustomBtn"
+            >
+              Custom Payload
+            </button>
+          </div>
+
+          <!-- Random Payload Tab -->
+          <div id="mpTabRandom" class="mp-tab">
+            <div class="form-group">
+              <label for="mpRandomNodeId">Node ID</label>
+              <input
+                type="number"
+                id="mpRandomNodeId"
+                value="2"
+                min="1"
+                max="232"
+                style="width: 100px"
+              />
+            </div>
+            <div class="form-group">
+              <label for="mpRandomCount">Number of Frames</label>
+              <input
+                type="number"
+                id="mpRandomCount"
+                value="5"
+                min="1"
+                max="100"
+                style="width: 100px"
+              />
+            </div>
+            <div class="form-group">
+              <label for="mpRandomManufacturerId">Manufacturer ID (hex)</label>
+              <input
+                type="text"
+                id="mpRandomManufacturerId"
+                value="0x0000"
+                placeholder="0x0000"
+                style="width: 150px"
+              />
+            </div>
+            <button
+              class="btn btn-primary"
+              onclick="sendRandomMP()"
+              id="mpRandomSendBtn"
+            >
+              Send Random 32-Byte Payloads
+            </button>
+          </div>
+
+          <!-- Custom Payload Tab -->
+          <div id="mpTabCustom" class="mp-tab" style="display: none">
+            <div class="form-group">
+              <label for="mpCustomNodeId">Node ID</label>
+              <input
+                type="number"
+                id="mpCustomNodeId"
+                value="2"
+                min="1"
+                max="232"
+                style="width: 100px"
+              />
+            </div>
+            <div class="form-group">
+              <label for="mpCustomPayload">
+                Payload (Hex String - 64 characters = 32 bytes)
+              </label>
+              <textarea
+                id="mpCustomPayload"
+                rows="3"
+                placeholder="000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+              ></textarea>
+              <small>
+                Enter exactly 64 hex characters (0-9, a-f). Spaces are
+                automatically removed.
+              </small>
+            </div>
+            <div class="form-group">
+              <label for="mpCustomManufacturerId">Manufacturer ID (hex)</label>
+              <input
+                type="text"
+                id="mpCustomManufacturerId"
+                value="0x0000"
+                placeholder="0x0000"
+                style="width: 150px"
+              />
+            </div>
+            <div class="form-group">
+              <label for="mpCustomCount">Number of Frames</label>
+              <input
+                type="number"
+                id="mpCustomCount"
+                value="1"
+                min="1"
+                max="100"
+                style="width: 100px"
+              />
+            </div>
+            <button
+              class="btn btn-primary"
+              onclick="sendCustomMP()"
+              id="mpCustomSendBtn"
+            >
+              Send Custom Payload
+            </button>
+            <button class="btn btn-secondary" onclick="generateRandomHex()">
+              Generate Random Hex
+            </button>
+          </div>
+
+          <!-- Command History -->
+          <div
+            style="
+              margin-top: 30px;
+              border-top: 1px solid var(--border-primary);
+              padding-top: 20px;
+            "
+          >
+            <h3>Command History</h3>
+            <div id="mpHistory" style="margin-top: 15px">
+              <p style="color: var(--text-tertiary)">No commands sent yet.</p>
+            </div>
+            <button
+              class="btn btn-secondary"
+              onclick="clearMPHistory()"
+              style="margin-top: 10px"
+            >
+              Clear History
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- WebSocket Log Section -->
+      <section
+        id="section-ws-log"
+        class="section-container"
+        aria-labelledby="ws-log-heading"
+      >
+        <div class="header">
+          <h1 id="ws-log-heading">WebSocket Communication Log</h1>
+          <p>Monitor all WebSocket messages sent and received</p>
+        </div>
+
+        <div class="card">
+          <div class="ws-log-container">
+            <div class="ws-log-header">
+              <h3>Message Log</h3>
+              <div class="ws-log-controls">
+                <button class="btn btn-secondary" onclick="clearWSLog()">
+                  Clear Log
+                </button>
+                <button class="btn btn-secondary" onclick="toggleWSLogAutoScroll()" id="autoScrollBtn">
+                  Auto-scroll: ON
+                </button>
+              </div>
+            </div>
+            <div class="ws-log-messages" id="wsLogMessages">
+              <div class="ws-log-empty">No messages yet. WebSocket activity will appear here.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      // WebSocket connection
+      let ws = null;
+      let wsReconnectTimeout = null;
+      let pendingRequests = new Map();
+      let requestIdCounter = 0;
+
+      // WebSocket log
+      let wsLogMessages = [];
+      let wsLogAutoScroll = true;
+      const MAX_LOG_MESSAGES = 500;
+
+      // Initialize WebSocket connection
+      function initWebSocket() {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}`;
+
+        addWSLogMessage("received", { type: "CONNECTION", message: "Connecting to WebSocket..." });
+
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log("WebSocket connected");
+          addWSLogMessage("received", { type: "CONNECTION", message: "WebSocket connected successfully" });
+          showAlert("Connected to server", "success");
+          // Load initial data
+          loadDriverStatus();
+          loadProvisioningEntries();
+          loadNodes();
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            addWSLogMessage("received", message);
+            handleWebSocketMessage(message);
+          } catch (error) {
+            console.error("Error parsing WebSocket message:", error);
+            addWSLogMessage("received", { error: error.message, raw: event.data });
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          addWSLogMessage("received", { type: "ERROR", message: "WebSocket connection error", error: error.toString() });
+          showAlert("WebSocket connection error", "error");
+        };
+
+        ws.onclose = () => {
+          console.log("WebSocket disconnected");
+          addWSLogMessage("received", { type: "CONNECTION", message: "WebSocket disconnected" });
+          showAlert("Disconnected from server. Reconnecting...", "info");
+          // Reconnect after 3 seconds
+          wsReconnectTimeout = setTimeout(() => {
+            initWebSocket();
+          }, 3000);
+        };
+      }
+
+      // Handle incoming WebSocket messages
+      function handleWebSocketMessage(message) {
+        // Handle request/response pattern
+        if (message.requestId && pendingRequests.has(message.requestId)) {
+          const { resolve, reject } = pendingRequests.get(message.requestId);
+          pendingRequests.delete(message.requestId);
+
+          if (message.type === "ERROR") {
+            reject(new Error(message.message));
+          } else {
+            resolve(message);
+          }
+          return;
+        }
+
+        // Handle broadcast events
+        switch (message.type) {
+          case "CONNECTED":
+            console.log("Connected:", message.message);
+            break;
+
+          case "DRIVER_READY":
+            showAlert("Z-Wave driver is ready", "success");
+            loadDriverStatus();
+            loadProvisioningEntries();
+            loadNodes();
+            break;
+
+          case "START_SUCCESS":
+            showAlert("Z-Wave driver started successfully", "success");
+            loadDriverStatus();
+            break;
+
+          case "NODE_ADDED":
+            showAlert(`Node ${message.nodeId} added`, "success");
+            loadNodes();
+            loadProvisioningEntries();
+            break;
+
+          case "NODE_REMOVED":
+            showAlert(`Node ${message.nodeId} removed`, "info");
+            loadNodes();
+            loadProvisioningEntries();
+            break;
+
+          case "NODE_STATUS_CHANGED":
+            loadNodes();
+            break;
+
+          case "ERROR":
+            showAlert("Error: " + message.message, "error");
+            break;
+
+          default:
+            console.log("Unhandled message type:", message.type);
+        }
+      }
+
+      // Send WebSocket message and wait for response
+      function sendWebSocketMessage(type, data = {}) {
+        return new Promise((resolve, reject) => {
+          if (!ws || ws.readyState !== WebSocket.OPEN) {
+            reject(new Error("WebSocket is not connected"));
+            return;
+          }
+
+          const requestId = ++requestIdCounter;
+          const message = {
+            type,
+            requestId,
+            ...data,
+          };
+
+          pendingRequests.set(requestId, { resolve, reject });
+
+          // Set timeout for request (10 seconds)
+          setTimeout(() => {
+            if (pendingRequests.has(requestId)) {
+              pendingRequests.delete(requestId);
+              reject(new Error("Request timeout"));
+            }
+          }, 10000);
+
+          // Log the sent message
+          addWSLogMessage("sent", message);
+
+          ws.send(JSON.stringify(message));
+        });
+      }
+
+      // Section Navigation
+      function showSection(sectionId) {
+        // Hide all sections
+        document.querySelectorAll(".section-container").forEach((section) => {
+          section.classList.remove("active");
+        });
+
+        // Show selected section
+        const targetSection = document.getElementById(`section-${sectionId}`);
+        if (targetSection) {
+          targetSection.classList.add("active");
+        }
+
+        // Update menu items
+        document.querySelectorAll(".menu-item").forEach((item) => {
+          item.classList.remove("active");
+        });
+
+        const activeMenuItem = document.querySelector(
+          `[data-section="${sectionId}"]`
+        );
+        if (activeMenuItem) {
+          activeMenuItem.classList.add("active");
+        }
+      }
+
+      // Show alert message
+      function showAlert(message, type = "info") {
+        const alert = document.getElementById("statusAlert");
+        alert.textContent = message;
+        alert.className = `alert alert-${type}`;
+        alert.classList.remove("hidden");
+        setTimeout(() => {
+          alert.classList.add("hidden");
+        }, 5000);
+      }
+
+      // Load provisioning entries
+      async function loadProvisioningEntries() {
+        try {
+          const result = await sendWebSocketMessage("GET_PROVISIONING_ENTRIES");
+          if (result.type === "PROVISIONING_ENTRIES") {
+            displayProvisioningEntries(result.data);
+          }
+        } catch (error) {
+          showAlert(
+            "Error loading provisioning entries: " + error.message,
+            "error"
+          );
+        }
+      }
+
+      // Display provisioning entries
+      function displayProvisioningEntries(entries) {
+        const container = document.getElementById("entriesList");
+
+        if (entries.length === 0) {
+          container.innerHTML =
+            "<p style='color: var(--text-secondary)'>No provisioning entries yet. Add one above.</p>";
+          return;
+        }
+
+        container.innerHTML = entries
+          .map(
+            (entry) => `
+        <div class="entry-item">
+          <div class="entry-info">
+            <h3>
+              ${entry.name || "Unnamed Device"}
+              <span class="status-badge ${
+                entry.status ? "status-active" : "status-inactive"
+              }">
+                ${entry.status ? "Active" : "Inactive"}
+              </span>
+              ${
+                entry.nodeId
+                  ? `<span class="status-badge status-connected">Connected (Node ${entry.nodeId})</span>`
+                  : ""
+              }
+            </h3>
+            <p><strong>DSK:</strong> ${entry.dsk}</p>
+            <p><strong>Protocol:</strong> ${entry.protocol}</p>
+            ${
+              entry.location
+                ? `<p><strong>Location:</strong> ${entry.location}</p>`
+                : ""
+            }
+          </div>
+          <div class="entry-actions">
+            ${
+              !entry.nodeId
+                ? `
+              <button class="btn ${
+                entry.status ? "btn-danger" : "btn-success"
+              }" 
+                      onclick="toggleEntryStatus('${
+                        entry.dsk
+                      }', ${!entry.status})">
+                ${entry.status ? "Deactivate" : "Activate"}
+              </button>
+            `
+                : ""
+            }
+            ${
+              !entry.nodeId
+                ? `
+              <button class="btn btn-danger" onclick="deleteEntry('${entry.dsk}')">
+                Delete
+              </button>
+            `
+                : ""
+            }
+          </div>
+        </div>
+      `
+          )
+          .join("");
+      }
+
+      // Toggle entry status
+      async function toggleEntryStatus(dsk, active) {
+        try {
+          const result = await sendWebSocketMessage(
+            "UPDATE_PROVISIONING_ENTRY_STATUS",
+            {
+              dsk,
+              active,
+            }
+          );
+
+          if (result.type === "PROVISIONING_ENTRY_STATUS_UPDATED") {
+            showAlert(
+              `Entry ${active ? "activated" : "deactivated"} successfully`,
+              "success"
+            );
+            loadProvisioningEntries();
+          }
+        } catch (error) {
+          showAlert("Error updating status: " + error.message, "error");
+        }
+      }
+
+      // Delete entry
+      async function deleteEntry(dsk) {
+        if (
+          !confirm("Are you sure you want to delete this provisioning entry?")
+        ) {
+          return;
+        }
+
+        try {
+          const result = await sendWebSocketMessage(
+            "DELETE_PROVISIONING_ENTRY",
+            {
+              dsk,
+            }
+          );
+
+          if (result.type === "PROVISIONING_ENTRY_DELETED") {
+            showAlert("Entry deleted successfully", "success");
+            loadProvisioningEntries();
+          }
+        } catch (error) {
+          showAlert("Error deleting entry: " + error.message, "error");
+        }
+      }
+
+      // Load connected nodes
+      async function loadNodes() {
+        try {
+          const result = await sendWebSocketMessage("GET_NODES");
+          if (result.type === "NODES") {
+            displayNodes(result.data);
+          }
+        } catch (error) {
+          console.error("Error loading nodes:", error);
+        }
+      }
+
+      // Display nodes
+      function displayNodes(nodes) {
+        const container = document.getElementById("nodesList");
+
+        if (nodes.length === 0) {
+          container.innerHTML =
+            '<div class="loading">No nodes connected yet</div>';
+          return;
+        }
+
+        container.innerHTML = nodes
+          .map(
+            (node) => `
+        <div class="node-card">
+          <h3>${node.name}</h3>
+          <p><strong>Node ID:</strong> ${node.id}</p>
+          <p><strong>Status:</strong> ${node.status}</p>
+          <p><strong>Protocol:</strong> ${node.protocol || "Unknown"}</p>
+          ${
+            node.location
+              ? `<p><strong>Location:</strong> ${node.location}</p>`
+              : ""
+          }
+          ${
+            node.deviceConfig
+              ? `<p><strong>Device:</strong> ${
+                  node.deviceConfig.label || "Unknown"
+                }</p>`
+              : ""
+          }
+        </div>
+      `
+          )
+          .join("");
+      }
+
+      // Handle form submission
+      document
+        .getElementById("provisionForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const formData = new FormData(e.target);
+          const protocol = formData.get("protocol");
+          const isLongRange = protocol === "ZWaveLongRange";
+
+          const entry = {
+            dsk: formData.get("dsk"),
+            name: formData.get("name") || "",
+            location: formData.get("location") || "",
+            protocol: protocol,
+            status: false, // Start as inactive
+          };
+
+          // Always include security classes (even if all false)
+          // The backend will handle Long Range vs Z-Wave appropriately
+          entry.s2AccessControl = formData.get("s2AccessControl") === "on";
+          entry.s2Authenticated = formData.get("s2Authenticated") === "on";
+          entry.s2Unauthenticated = formData.get("s2Unauthenticated") === "on";
+          entry.s0Legacy = formData.get("s0Legacy") === "on";
+
+          // Debug logging
+          console.log("Form submission - Security classes:", {
+            s2AccessControl: entry.s2AccessControl,
+            s2Authenticated: entry.s2Authenticated,
+            s2Unauthenticated: entry.s2Unauthenticated,
+            s0Legacy: entry.s0Legacy,
+            protocol: entry.protocol,
+          });
+
+          try {
+            const result = await sendWebSocketMessage(
+              "ADD_PROVISIONING_ENTRY",
+              {
+                entry,
+              }
+            );
+
+            if (result.type === "PROVISIONING_ENTRY_ADDED") {
+              showAlert(
+                "Device added to provisioning list successfully!",
+                "success"
+              );
+              e.target.reset();
+              loadProvisioningEntries();
+            }
+          } catch (error) {
+            showAlert("Error adding device: " + error.message, "error");
+          }
+        });
+
+      // Driver status function (read-only)
+      async function loadDriverStatus() {
+        try {
+          const result = await sendWebSocketMessage("GET_STATUS");
+          if (result.type === "STATUS") {
+            const status = result.data;
+            const statusText = document.getElementById("driverStatusText");
+            const portText = document.getElementById("driverPortText");
+            const startSection = document.getElementById("startDriverSection");
+            const startBtn = document.getElementById("startDriverBtn");
+
+            portText.textContent = status.port || "-";
+
+            if (status.driverReady && status.connected) {
+              statusText.textContent = "Connected";
+              statusText.className = "status-badge status-active";
+              startSection.style.display = "none";
+            } else {
+              statusText.textContent = "Not Started";
+              statusText.className = "status-badge status-inactive";
+              startSection.style.display = "block";
+              startBtn.disabled = false;
+            }
+          }
+        } catch (error) {
+          console.error("Error loading driver status:", error);
+        }
+      }
+
+      // Start driver function
+      async function startDriver() {
+        const startBtn = document.getElementById("startDriverBtn");
+        startBtn.disabled = true;
+        startBtn.textContent = "Starting...";
+
+        try {
+          const result = await sendWebSocketMessage("START", {
+            port: document.getElementById("driverPortText").textContent || undefined,
+          });
+
+          if (result.type === "START_SUCCESS") {
+            showAlert("Driver started successfully", "success");
+            loadDriverStatus();
+          }
+        } catch (error) {
+          showAlert("Error starting driver: " + error.message, "error");
+          startBtn.disabled = false;
+          startBtn.textContent = "Start Z-Wave Driver";
+        }
+      }
+
+      // Initialize WebSocket connection
+      initWebSocket();
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", () => {
+        if (wsReconnectTimeout) {
+          clearTimeout(wsReconnectTimeout);
+        }
+        if (ws) {
+          ws.close();
+        }
+      });
+
+      // Refresh every 5 seconds
+      setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          loadDriverStatus();
+          loadProvisioningEntries();
+          loadNodes();
+        }
+      }, 25000);
+
+      // Manufacturer Proprietary functions
+      let mpHistory = JSON.parse(localStorage.getItem("mpHistory") || "[]");
+
+      function showMPTab(tab) {
+        const randomTab = document.getElementById("mpTabRandom");
+        const customTab = document.getElementById("mpTabCustom");
+        const randomBtn = document.getElementById("mpTabRandomBtn");
+        const customBtn = document.getElementById("mpTabCustomBtn");
+
+        if (tab === "random") {
+          randomTab.style.display = "block";
+          customTab.style.display = "none";
+          randomBtn.classList.add("active");
+          customBtn.classList.remove("active");
+        } else {
+          randomTab.style.display = "none";
+          customTab.style.display = "block";
+          randomBtn.classList.remove("active");
+          customBtn.classList.add("active");
+        }
+      }
+
+      async function sendRandomMP() {
+        // Generate a random 32-byte payload and send it as a custom command
+        const hexChars = "0123456789abcdef";
+        let randomHex = "";
+        for (let i = 0; i < 64; i++) {
+          randomHex += hexChars[Math.floor(Math.random() * 16)];
+        }
+
+        const nodeId =
+          parseInt(document.getElementById("mpRandomNodeId").value) || 2;
+        const count =
+          parseInt(document.getElementById("mpRandomCount").value) || 5;
+        const manufacturerIdStr =
+          document.getElementById("mpRandomManufacturerId").value || "0x0000";
+        const manufacturerId = manufacturerIdStr.startsWith("0x")
+          ? parseInt(manufacturerIdStr, 16)
+          : parseInt(manufacturerIdStr, 16);
+
+        const sendBtn = document.getElementById("mpRandomSendBtn");
+        sendBtn.disabled = true;
+        sendBtn.textContent = "Sending...";
+
+        try {
+          // Send each random payload individually
+          for (let i = 0; i < count; i++) {
+            // Generate new random payload for each frame
+            let frameHex = "";
+            for (let j = 0; j < 64; j++) {
+              frameHex += hexChars[Math.floor(Math.random() * 16)];
+            }
+
+            const result = await sendWebSocketMessage("SEND_COMMAND", {
+              nodeId,
+              payloadHex: frameHex,
+              manufacturerId,
+              count: 1,
+            });
+
+            if (result.type === "COMMAND_RESULT") {
+              const data = result.data;
+              addToMPHistory({
+                type: "random",
+                nodeId: data.nodeId,
+                manufacturerId: data.manufacturerId,
+                payloadHex: data.vendorPayloadHex,
+                frameNumber: i + 1,
+                timestamp: new Date().toISOString(),
+              });
+            }
+          }
+
+          showAlert(
+            `Successfully sent ${count} random payload(s) to node ${nodeId}`,
+            "success"
+          );
+        } catch (error) {
+          showAlert("Error sending command: " + error.message, "error");
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.textContent = "Send Random 32-Byte Payloads";
+        }
+      }
+
+      async function sendCustomMP() {
+        const nodeId =
+          parseInt(document.getElementById("mpCustomNodeId").value) || 2;
+        const payloadHex = document
+          .getElementById("mpCustomPayload")
+          .value.trim();
+        const manufacturerIdStr =
+          document.getElementById("mpCustomManufacturerId").value || "0x0000";
+        const manufacturerId = manufacturerIdStr.startsWith("0x")
+          ? parseInt(manufacturerIdStr, 16)
+          : parseInt(manufacturerIdStr, 16);
+        const count =
+          parseInt(document.getElementById("mpCustomCount").value) || 1;
+
+        if (!payloadHex) {
+          showAlert("Please enter a payload", "error");
+          return;
+        }
+
+        // Validate hex string
+        const normalized = payloadHex.replace(/\s+/g, "");
+        if (!/^[0-9a-fA-F]+$/.test(normalized)) {
+          showAlert(
+            "Payload must contain only hex characters (0-9, a-f)",
+            "error"
+          );
+          return;
+        }
+
+        if (normalized.length !== 64) {
+          showAlert(
+            `Payload must be exactly 64 hex characters (32 bytes), got ${normalized.length}`,
+            "error"
+          );
+          return;
+        }
+
+        const sendBtn = document.getElementById("mpCustomSendBtn");
+        sendBtn.disabled = true;
+        sendBtn.textContent = "Sending...";
+
+        try {
+          const result = await sendWebSocketMessage("SEND_COMMAND", {
+            payloadHex: normalized,
+            nodeId,
+            manufacturerId,
+            count,
+          });
+
+          if (result.type === "COMMAND_RESULT") {
+            const data = result.data;
+            showAlert(
+              `Successfully sent custom payload to node ${data.nodeId} (${data.count} frame(s))`,
+              "success"
+            );
+
+            // Add to history
+            for (let i = 0; i < data.count; i++) {
+              addToMPHistory({
+                type: "custom",
+                nodeId: data.nodeId,
+                manufacturerId: data.manufacturerId,
+                payloadHex: data.vendorPayloadHex,
+                frameNumber: i + 1,
+                timestamp: new Date().toISOString(),
+              });
+            }
+          }
+        } catch (error) {
+          showAlert("Error sending command: " + error.message, "error");
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.textContent = "Send Custom Payload";
+        }
+      }
+
+      function generateRandomHex() {
+        const hexChars = "0123456789abcdef";
+        let hex = "";
+        for (let i = 0; i < 64; i++) {
+          hex += hexChars[Math.floor(Math.random() * 16)];
+        }
+        document.getElementById("mpCustomPayload").value = hex;
+      }
+
+      function addToMPHistory(entry) {
+        mpHistory.unshift(entry);
+        // Keep only last 50 entries
+        if (mpHistory.length > 50) {
+          mpHistory = mpHistory.slice(0, 50);
+        }
+        localStorage.setItem("mpHistory", JSON.stringify(mpHistory));
+        renderMPHistory();
+      }
+
+      function renderMPHistory() {
+        const container = document.getElementById("mpHistory");
+
+        if (mpHistory.length === 0) {
+          container.innerHTML =
+            '<p style="color: var(--text-tertiary)">No commands sent yet.</p>';
+          return;
+        }
+
+        container.innerHTML = mpHistory
+          .map((entry) => {
+            const date = new Date(entry.timestamp);
+            const timeStr = date.toLocaleString();
+            const payloadDisplay = entry.payloadHex.match(/.{1,32}/g).join(" ");
+
+            return `
+          <div class="mp-history-item">
+            <div class="mp-history-item-header">
+              <span>${
+                entry.type === "random" ? "🎲 Random" : "✏️ Custom"
+              } - Node ${entry.nodeId} - Frame #${entry.frameNumber}</span>
+              <span class="mp-history-item-time">${timeStr}</span>
+            </div>
+            <div class="mp-history-item-payload">${payloadDisplay}</div>
+            <div class="mp-history-item-details">
+              Manufacturer ID: 0x${entry.manufacturerId
+                .toString(16)
+                .padStart(4, "0")} | 
+              <button 
+                class="btn btn-primary" 
+                onclick="resendMPPayload('${entry.payloadHex}', ${
+              entry.nodeId
+            }, ${entry.manufacturerId})"
+                style="padding: 4px 8px; font-size: 12px;"
+              >
+                Resend
+              </button>
+            </div>
+          </div>
+        `;
+          })
+          .join("");
+      }
+
+      function resendMPPayload(payloadHex, nodeId, manufacturerId) {
+        document.getElementById("mpCustomNodeId").value = nodeId;
+        document.getElementById("mpCustomPayload").value = payloadHex;
+        document.getElementById(
+          "mpCustomManufacturerId"
+        ).value = `0x${manufacturerId.toString(16).padStart(4, "0")}`;
+        document.getElementById("mpCustomCount").value = 1;
+        showMPTab("custom");
+        // Switch to commands section and scroll to form
+        showSection("commands");
+        setTimeout(() => {
+          document
+            .getElementById("mpTabCustom")
+            .scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      }
+
+      function clearMPHistory() {
+        if (confirm("Are you sure you want to clear the command history?")) {
+          mpHistory = [];
+          localStorage.setItem("mpHistory", JSON.stringify(mpHistory));
+          renderMPHistory();
+        }
+      }
+
+      // Initialize MP history on load
+      renderMPHistory();
+
+      // WebSocket Log Functions
+      function addWSLogMessage(direction, message) {
+        const timestamp = new Date();
+        const logEntry = {
+          direction,
+          message,
+          timestamp: timestamp.toISOString(),
+          timeDisplay: timestamp.toLocaleTimeString(),
+        };
+
+        wsLogMessages.push(logEntry);
+
+        // Keep only the last MAX_LOG_MESSAGES entries
+        if (wsLogMessages.length > MAX_LOG_MESSAGES) {
+          wsLogMessages = wsLogMessages.slice(-MAX_LOG_MESSAGES);
+        }
+
+        renderWSLog();
+      }
+
+      function renderWSLog() {
+        const container = document.getElementById("wsLogMessages");
+        if (!container) return; // Section might not be visible yet
+
+        if (wsLogMessages.length === 0) {
+          container.innerHTML =
+            '<div class="ws-log-empty">No messages yet. WebSocket activity will appear here.</div>';
+          return;
+        }
+
+        container.innerHTML = wsLogMessages
+          .map((entry) => {
+            const messageType = entry.message.type || "Unknown";
+            const messageStr = JSON.stringify(entry.message, null, 2);
+
+            return `
+          <div class="ws-log-message ${entry.direction}">
+            <div class="ws-message-bubble">
+              <div class="ws-message-header">
+                <span class="ws-message-type">${messageType}</span>
+                <span class="ws-message-time">${entry.timeDisplay}</span>
+              </div>
+              <div class="ws-message-content">${escapeHtml(messageStr)}</div>
+            </div>
+          </div>
+        `;
+          })
+          .join("");
+
+        // Auto-scroll to bottom if enabled
+        if (wsLogAutoScroll) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function clearWSLog() {
+        if (confirm("Are you sure you want to clear the WebSocket log?")) {
+          wsLogMessages = [];
+          renderWSLog();
+        }
+      }
+
+      function toggleWSLogAutoScroll() {
+        wsLogAutoScroll = !wsLogAutoScroll;
+        const btn = document.getElementById("autoScrollBtn");
+        if (btn) {
+          btn.textContent = `Auto-scroll: ${wsLogAutoScroll ? "ON" : "OFF"}`;
+        }
+        
+        if (wsLogAutoScroll) {
+          const container = document.getElementById("wsLogMessages");
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

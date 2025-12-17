@@ -26,7 +26,8 @@
     "url": "https://github.com/sponsors/AlCalzone/"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "Digilock"
   ],
   "devDependencies": {
     "@actions/core": "^1.11.1",

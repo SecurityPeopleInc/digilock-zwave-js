@@ -14,6 +14,7 @@ import {
 	type InterviewOptions,
 	InvalidCC,
 	KEXFailType,
+	ManufacturerProprietaryCC,
 	MultiChannelCC,
 	NoOperationCC,
 	type PersistValuesContext,
@@ -5408,6 +5409,8 @@ ${handlers.length} left`,
 
 		// Transport Service has a special handler
 		if (cc instanceof TransportServiceCC) return false;
+		// Manufacturer Proprietary CC can be received at lower security levels
+		if (cc instanceof ManufacturerProprietaryCC) return false;
 		// CRC16 belongs outside of Security encapsulation
 		if (cc instanceof CRC16CCCommandEncapsulation) {
 			return this.isSecurityLevelTooLow(cc.encapsulated);

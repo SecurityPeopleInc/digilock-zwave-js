@@ -2087,6 +2087,9 @@ export class ZWaveController
 		) {
 			// If Smart Start was enabled before the inclusion/exclusion,
 			// enable it again and ignore errors
+			this.driver.controllerLog.print(
+				`Inclusion state changed to Idle, re-enabling Smart Start listening mode (was enabled before)`,
+			);
 			this.enableSmartStart().catch(noop);
 		}
 	}
@@ -2288,6 +2291,11 @@ export class ZWaveController
 								: ""
 						}`,
 					);
+					self.driver.controllerLog.print(
+						`SmartStart inclusion attempt - DSK: ${provisioningEntry.dsk}, Protocol: ${
+							protocol == Protocols.ZWaveLongRange ? "ZWaveLongRange" : "ZWave"
+						}, SecurityClasses: ${JSON.stringify(provisioningEntry.securityClasses)}`,
+					);
 
 					const msg = new AddNodeDSKToNetworkRequest({
 						nwiHomeId: nwiHomeIdFromDSK(dskBuffer),
@@ -2350,10 +2358,27 @@ export class ZWaveController
 			);
 
 			if (msg.status === AddNodeStatus.Failed) {
+				const dsk = (opts.strategy === InclusionStrategy.SmartStart && "provisioning" in opts && opts.provisioning?.dsk) 
+					? opts.provisioning.dsk 
+					: "unknown";
+				const currentAttempts = dsk !== "unknown" ? (self._smartStartFailedAttempts.get(dsk) || 0) : 0;
+				const maxAttempts = self.driver.options.attempts.smartStartInclusion;
+				
 				self.driver.controllerLog.print(
-					`Adding the node failed`,
+					`Adding the node failed, ${JSON.stringify(msg)}`,
 					"error",
 				);
+				if (opts.strategy === InclusionStrategy.SmartStart && dsk !== "unknown") {
+					self.driver.controllerLog.print(
+						`SmartStart inclusion failed for DSK ${dsk} - Attempt ${currentAttempts + 1}/${maxAttempts}, CallbackId: ${msg.callbackId}`,
+						"error",
+					);
+				} else {
+					self.driver.controllerLog.print(
+						`Inclusion failed - CallbackId: ${msg.callbackId}, Strategy: ${opts.strategy === InclusionStrategy.SmartStart ? "SmartStart" : "Default"}`,
+						"error",
+					);
+				}
 				self.emit("inclusion failed");
 
 				// in any case, stop the inclusion process so we don't accidentally add another node
@@ -2758,11 +2783,16 @@ export class ZWaveController
 
 				// Disable the provisioning entry after max failed attempts
 				if (newAttempts >= maxAttempts) {
+					this.driver.controllerLog.print(
+						`SmartStart inclusion failed ${maxAttempts} times for DSK ${dsk}, disabling provisioning entry automatically`,
+						"warn",
+					);
 					const provisioningList = [...this.provisioningList];
 					const entryIndex = provisioningList.findIndex((e) =>
 						e.dsk === dsk
 					);
 					if (entryIndex >= 0) {
+						const oldStatus = provisioningList[entryIndex].status;
 						provisioningList[entryIndex] = {
 							...provisioningList[entryIndex],
 							status: ProvisioningEntryStatus.Inactive,
@@ -2776,9 +2806,18 @@ export class ZWaveController
 							newNode.id,
 							{
 								message:
-									`Provisioning entry for DSK ${dsk} has been disabled after ${maxAttempts} failed inclusion attempts.`,
+									`Provisioning entry for DSK ${dsk} has been disabled after ${maxAttempts} failed inclusion attempts (was ${oldStatus === ProvisioningEntryStatus.Active ? "Active" : "Inactive"}).`,
 								level: "warn",
 							},
+						);
+						this.driver.controllerLog.print(
+							`Provisioning entry status changed: DSK ${dsk} -> Inactive (automatic disable after ${maxAttempts} failures)`,
+							"warn",
+						);
+					} else {
+						this.driver.controllerLog.print(
+							`Warning: Could not find provisioning entry for DSK ${dsk} to disable`,
+							"warn",
 						);
 					}
 				}
@@ -3752,14 +3791,23 @@ export class ZWaveController
 			this.driver.controllerLog.print(
 				"NWI Home ID found in provisioning list, including node...",
 			);
+			this.driver.controllerLog.print(
+				`Automatic SmartStart inclusion triggered - DSK: ${entry.dsk}, Protocol: ${
+					isLongRange ? "ZWaveLongRange" : "ZWave"
+				}, Current state: ${getEnumMemberName(InclusionState, this._inclusionState)}`,
+			);
 			try {
 				const result = await this.beginInclusionSmartStart(
 					provisioningEntry,
 				);
 				if (!result) {
 					this.driver.controllerLog.print(
-						"Smart Start inclusion could not be started",
+						`Smart Start inclusion could not be started - Current state: ${getEnumMemberName(InclusionState, this._inclusionState)}`,
 						"error",
+					);
+				} else {
+					this.driver.controllerLog.print(
+						`Smart Start inclusion started successfully for DSK: ${entry.dsk}`,
 					);
 				}
 			} catch (e) {
@@ -3768,7 +3816,7 @@ export class ZWaveController
 						getErrorMessage(
 							e,
 						)
-					}`,
+					} - Current state: ${getEnumMemberName(InclusionState, this._inclusionState)}`,
 					"error",
 				);
 			}
@@ -3797,12 +3845,6 @@ export class ZWaveController
 					`Node ${nodeId} was (supposedly) included by another controller, but it is already part of the network. Ignoring the message...`,
 					"warn",
 				);
-				return;
-			}
-
-			// It can also happen that this is received while we're including that node ourselves.
-			// In this case, we also ignore the message, otherwise we'd fail security bootstrapping.
-			if (this.inclusionState === InclusionState.Including) {
 				return;
 			}
 

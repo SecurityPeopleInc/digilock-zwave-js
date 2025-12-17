@@ -1,0 +1,21 @@
+{
+  "name": "digilock",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Digilock Z-Wave provisioning client using zwave-js source code",
+  "scripts": {
+    "start": "tsx --conditions=@@dev src/server.js",
+    "dev": "tsx --conditions=@@dev --watch src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.20.5"
+  }
+}
