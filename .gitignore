@@ -24,6 +24,7 @@ zwave-js.tgz
 # ZWave cache
 */cache
 packages/*/cache
+Digilock/store/cache/
 /test/config
 
 # Temporary (import) config files
@@ -49,4 +50,3 @@ test/*_logrotate.json
 test/zwavejs_*.log
 .DS_Store
 
-Digilock/store/cache
