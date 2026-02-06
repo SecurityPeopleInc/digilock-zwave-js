@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { NodeStatus } from "../../../packages/core/src/definitions/index.js";
+import { NodeStatus, CommandClasses } from "../../../packages/core/src/definitions/index.js";
 import { ManufacturerProprietaryCC } from "../../../packages/cc/src/cc/ManufacturerProprietaryCC.js";
 import {
   generateRandom32BytePayload,
@@ -47,20 +47,23 @@ export class ZWaveLock extends EventEmitter {
     console.log(
       `[ZWaveLock ${this.nodeId}] Initializing Manufacturer Proprietary support...`
     );
-    this.forceManufacturerProprietarySupport();
-    this.configureManufacturerProprietarySecurity();
-    this.setupManufacturerProprietaryCommandHandler();
-    if (this.node.ready) {
-      this._initializeMPAPI();
-    } else {
-      this.node.once("ready", () => {
+    // No longer forcing Manufacturer Proprietary support automatically
+    // Only set up handlers if the CC is already supported
+    if (this.node.supportedCCs?.has?.(0x91) || this.node.implementedCommandClasses?.has?.(0x91)) {
+      this.configureManufacturerProprietarySecurity();
+      this.setupManufacturerProprietaryCommandHandler();
+      if (this.node.ready) {
         this._initializeMPAPI();
-      });
+      } else {
+        this.node.once("ready", () => {
+          this._initializeMPAPI();
+        });
+      }
     }
 
     this._setupComplete = true;
     console.log(
-      `[ZWaveLock ${this.nodeId}] ✅ Manufacturer Proprietary support initialized`
+      `[ZWaveLock ${this.nodeId}] ✅ Initialization complete`
     );
   }
 
@@ -335,7 +338,7 @@ export class ZWaveLock extends EventEmitter {
       );
       return null;
     }
-    this.forceManufacturerProprietarySupport();
+    // No longer forcing support - only use if already available
     if (!this._mpAPI) {
       this._initializeMPAPI();
     }
@@ -368,7 +371,6 @@ export class ZWaveLock extends EventEmitter {
     if (!this.node.ready) {
       throw new Error(`Node ${this.nodeId} is not ready yet`);
     }
-    this.forceManufacturerProprietarySupport();
     const ccMP = this.getManufacturerProprietaryAPI();
     if (!ccMP) {
       throw new Error(
@@ -460,7 +462,6 @@ export class ZWaveLock extends EventEmitter {
     if (count > 100) {
       count = 100;
     }
-    this.forceManufacturerProprietarySupport();
     const ccMP = this.getManufacturerProprietaryAPI();
     if (!ccMP) {
       throw new Error(
@@ -574,6 +575,82 @@ export class ZWaveLock extends EventEmitter {
       hasManufacturerProprietary:
         !!this.node.commandClasses["Manufacturer Proprietary"],
     };
+  }
+
+  /**
+   * Get all command classes supported by this node
+   * @returns {Array<Object>} Array of command class information objects
+   */
+  getCommandClasses() {
+    const commandClasses = [];
+    
+    if (!this.node) {
+      return commandClasses;
+    }
+
+    // Get supported command classes
+    const supportedCCs = this.node.supportedCCs || new Set();
+    // implementedCommandClasses is a Map, so we need to get the keys
+    const implementedCCsMap = this.node.implementedCommandClasses || new Map();
+    const implementedCCs = new Set(implementedCCsMap.keys());
+    const controlledCCs = this.node.controlledCCs || new Set();
+
+    // Combine all command classes (extract just the CC IDs)
+    const allCCs = new Set([...supportedCCs, ...implementedCCs, ...controlledCCs]);
+
+    for (const ccId of allCCs) {
+      // Ensure ccId is a number, not an object or array
+      const numericCCId = typeof ccId === 'number' ? ccId : (Array.isArray(ccId) ? ccId[0] : parseInt(ccId));
+      
+      if (isNaN(numericCCId)) {
+        console.warn(`[ZWaveLock ${this.nodeId}] Invalid CC ID:`, ccId);
+        continue;
+      }
+
+      try {
+        const ccVersion = this.node.getCCVersion?.(numericCCId) || 0;
+        const ccName = this._getCCName(numericCCId);
+        
+        commandClasses.push({
+          id: numericCCId,
+          name: ccName,
+          version: ccVersion,
+          supported: supportedCCs.has(numericCCId) || implementedCCs.has(numericCCId),
+          controlled: controlledCCs.has(numericCCId),
+          hasAPI: !!this.node.commandClasses?.[ccName],
+        });
+      } catch (error) {
+        // Skip if we can't get info for this CC
+        console.warn(`[ZWaveLock ${this.nodeId}] Could not get info for CC 0x${numericCCId.toString(16)}:`, error.message);
+      }
+    }
+
+    // Sort by ID
+    commandClasses.sort((a, b) => a.id - b.id);
+
+    return commandClasses;
+  }
+
+  /**
+   * Get command class name from ID
+   * @private
+   */
+  _getCCName(ccId) {
+    // Try to get name from CommandClasses enum if available
+    try {
+      if (CommandClasses) {
+        for (const [name, id] of Object.entries(CommandClasses)) {
+          if (id === ccId) {
+            return name;
+          }
+        }
+      }
+    } catch (error) {
+      // Fallback if CommandClasses not available
+    }
+    
+    // Fallback: return hex representation
+    return `0x${ccId.toString(16).padStart(2, "0")}`;
   }
 
   /**

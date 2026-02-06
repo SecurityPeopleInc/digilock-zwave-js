@@ -562,6 +562,83 @@
         font-size: var(--font-size-xs);
       }
 
+      /* Modal Styles */
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+      }
+
+      .modal-overlay.active {
+        display: flex;
+      }
+
+      .modal {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-xl);
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-lg);
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--spacing-lg);
+      }
+
+      .modal-header h2 {
+        margin: 0;
+        font-size: var(--font-size-xl);
+        color: var(--text-primary);
+      }
+
+      .modal-close {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-size: var(--font-size-2xl);
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        transition: all 0.2s;
+      }
+
+      .modal-close:hover {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+      }
+
+      .command-class-card {
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .command-class-card:hover {
+        border-color: var(--border-secondary);
+        background: var(--bg-tertiary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+
       /* WebSocket Log Chat Styles */
       .ws-log-container {
         display: flex;
@@ -957,11 +1034,21 @@
         aria-labelledby="commands-heading"
       >
         <div class="header">
-          <h1 id="commands-heading">Manufacturer Proprietary Commands</h1>
-          <p>Send 32-byte Manufacturer Proprietary commands to Z-Wave nodes</p>
+          <h1 id="commands-heading">Command Classes</h1>
+          <p>View all command classes supported by Z-Wave nodes</p>
         </div>
 
         <div class="card">
+          <h2>Available Command Classes</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 20px">
+            Click on a node to view its command classes
+          </p>
+          <div id="commandClassesList" style="margin-top: 20px">
+            <div class="loading">No nodes connected yet. Command classes will appear here when nodes are added.</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: var(--spacing-lg)">
           <h2>Manufacturer Proprietary (CC 0x91) Commands</h2>
           <p style="color: var(--text-secondary); margin-bottom: 20px">
             Send 32-byte Manufacturer Proprietary commands to Z-Wave nodes. The
@@ -1228,6 +1315,7 @@
             loadDriverStatus();
             loadProvisioningEntries();
             loadNodes();
+            loadCommandClasses();
             break;
 
           case "START_SUCCESS":
@@ -1236,15 +1324,41 @@
             break;
 
           case "NODE_ADDED":
+            console.log(`[Frontend] NODE_ADDED event received for node ${message.nodeId}`, message);
             showAlert(`Node ${message.nodeId} added`, "success");
             loadNodes();
             loadProvisioningEntries();
+            if (message.commandClasses && message.commandClasses.length > 0) {
+              console.log(`[Frontend] Node ${message.nodeId} has ${message.commandClasses.length} command classes in NODE_ADDED event`);
+              displayCommandClasses(message.nodeId, message.commandClasses);
+            } else {
+              console.log(`[Frontend] Node ${message.nodeId} has no command classes in NODE_ADDED event, requesting...`);
+              // Request command classes if not provided
+              requestCommandClassesForNode(message.nodeId);
+            }
+            // Refresh nodes list for commands tab
+            loadCommandClasses();
+            break;
+
+          case "NODE_COMMAND_CLASSES_UPDATED":
+            console.log(`[Frontend] NODE_COMMAND_CLASSES_UPDATED event received for node ${message.nodeId}`, message);
+            if (message.commandClasses) {
+              console.log(`[Frontend] Node ${message.nodeId} has ${message.commandClasses.length} command classes in update event`);
+              displayCommandClasses(message.nodeId, message.commandClasses);
+              renderAllCommandClasses();
+            } else {
+              console.warn(`[Frontend] NODE_COMMAND_CLASSES_UPDATED for node ${message.nodeId} but no commandClasses in message`);
+            }
             break;
 
           case "NODE_REMOVED":
             showAlert(`Node ${message.nodeId} removed`, "info");
             loadNodes();
             loadProvisioningEntries();
+            // Remove from command classes and refresh
+            nodeCommandClasses.delete(message.nodeId);
+            expandedNodes.delete(message.nodeId);
+            loadCommandClasses();
             break;
 
           case "NODE_STATUS_CHANGED":
@@ -1485,7 +1599,16 @@
           .map(
             (node) => `
         <div class="node-card">
-          <h3>${node.name}</h3>
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
+            <h3 style="margin: 0;">${node.name}</h3>
+            <button 
+              class="btn btn-danger" 
+              onclick="removeNode(${node.id}, '${node.name}')"
+              style="padding: var(--spacing-sm) var(--spacing-md); font-size: var(--font-size-sm);"
+              title="Remove node from network">
+              Remove
+            </button>
+          </div>
           <p><strong>Node ID:</strong> ${node.id}</p>
           <p><strong>Status:</strong> ${node.status}</p>
           <p><strong>Protocol:</strong> ${node.protocol || "Unknown"}</p>
@@ -1505,6 +1628,34 @@
       `
           )
           .join("");
+        
+        // Also update nodes list for commands tab
+        if (typeof updateNodesListForCommands === 'function') {
+          updateNodesListForCommands(nodes);
+        }
+      }
+
+      // Remove node function
+      async function removeNode(nodeId, nodeName) {
+        if (!confirm(`Are you sure you want to remove Node ${nodeId} (${nodeName}) from the network?\n\nNote: The node must be marked as failed for removal to work.`)) {
+          return;
+        }
+
+        try {
+          const result = await sendWebSocketMessage("REMOVE_NODE", {
+            nodeId: nodeId,
+          });
+
+          if (result.type === "NODE_REMOVED") {
+            showAlert(`Node ${nodeId} removed successfully`, "success");
+            loadNodes();
+            loadProvisioningEntries();
+          } else if (result.type === "ERROR") {
+            showAlert(`Error removing node: ${result.message}`, "error");
+          }
+        } catch (error) {
+          showAlert(`Error removing node: ${error.message}`, "error");
+        }
       }
 
       // Handle form submission
@@ -1887,6 +2038,184 @@
       // Initialize MP history on load
       renderMPHistory();
 
+      // Command Classes display
+      let nodeCommandClasses = new Map(); // Map of nodeId -> commandClasses array
+      let nodesList = []; // List of all nodes
+      let expandedNodes = new Set(); // Set of expanded node IDs
+
+      function displayCommandClasses(nodeId, commandClasses) {
+        console.log(`[Frontend] displayCommandClasses called for node ${nodeId} with ${commandClasses.length} command classes`);
+        // Store command classes for this node
+        nodeCommandClasses.set(nodeId, commandClasses);
+        
+        // Re-render all command classes
+        renderAllCommandClasses();
+      }
+
+      // Make toggleNodeExpansion globally accessible
+      window.toggleNodeExpansion = function(nodeId) {
+        console.log(`[Frontend] toggleNodeExpansion called for node ${nodeId}`);
+        // If we don't have command classes for this node, try to request them
+        if (!nodeCommandClasses.has(nodeId)) {
+          console.log(`[Frontend] Node ${nodeId} has no command classes, requesting...`);
+          requestCommandClassesForNode(nodeId);
+        } else {
+          console.log(`[Frontend] Node ${nodeId} already has ${nodeCommandClasses.get(nodeId).length} command classes`);
+        }
+        
+        if (expandedNodes.has(nodeId)) {
+          console.log(`[Frontend] Collapsing node ${nodeId}`);
+          expandedNodes.delete(nodeId);
+        } else {
+          console.log(`[Frontend] Expanding node ${nodeId}`);
+          expandedNodes.add(nodeId);
+        }
+        renderAllCommandClasses();
+      };
+
+      // Request command classes for a specific node
+      async function requestCommandClassesForNode(nodeId) {
+        console.log(`[Frontend] Requesting command classes for node ${nodeId}`);
+        try {
+          const result = await sendWebSocketMessage("GET_NODE_COMMAND_CLASSES", { nodeId: nodeId });
+          console.log(`[Frontend] Received response for node ${nodeId}:`, result.type);
+          if (result.type === "NODE_COMMAND_CLASSES" && result.data) {
+            console.log(`[Frontend] Got ${result.data.commandClasses.length} command classes for node ${nodeId}`);
+            displayCommandClasses(result.data.nodeId, result.data.commandClasses);
+            renderAllCommandClasses();
+          } else if (result.type === "ERROR") {
+            console.error(`[Frontend] Error getting command classes for node ${nodeId}:`, result.message);
+          }
+        } catch (error) {
+          console.error(`[Frontend] Could not request command classes for node ${nodeId}:`, error);
+        }
+      }
+
+      function renderAllCommandClasses() {
+        const container = document.getElementById("commandClassesList");
+        
+        if (nodesList.length === 0) {
+          container.innerHTML = '<div class="loading">No nodes connected yet. Command classes will appear here when nodes are added.</div>';
+          return;
+        }
+
+        let html = '';
+        for (const node of nodesList) {
+          const nodeId = node.id;
+          const commandClasses = nodeCommandClasses.get(nodeId) || [];
+          const isExpanded = expandedNodes.has(nodeId);
+          const hasCommandClasses = commandClasses.length > 0;
+
+          html += `
+            <div class="node-card" style="margin-bottom: var(--spacing-md); cursor: pointer;" onclick="toggleNodeExpansion(${nodeId})">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <h3 style="margin: 0; display: inline-block; margin-right: var(--spacing-sm)">${node.name || `Node ${nodeId}`}</h3>
+                  <span style="color: var(--text-tertiary); font-size: var(--font-size-sm)">(ID: ${nodeId})</span>
+                  ${hasCommandClasses ? `<span style="color: var(--text-secondary); font-size: var(--font-size-sm); margin-left: var(--spacing-sm)">- ${commandClasses.length} command class(es)</span>` : ''}
+                </div>
+                <div style="color: var(--text-secondary); font-size: var(--font-size-lg)">
+                  ${isExpanded ? '▼' : '▶'}
+                </div>
+              </div>
+              ${node.status ? `<p style="color: var(--text-secondary); font-size: var(--font-size-sm); margin-top: var(--spacing-xs)"><strong>Status:</strong> ${node.status}</p>` : ''}
+            </div>
+          `;
+
+          // Show command classes if expanded
+          if (isExpanded && hasCommandClasses) {
+            html += `
+              <div style="
+                margin-left: var(--spacing-xl);
+                margin-bottom: var(--spacing-lg);
+                padding: var(--spacing-md);
+                background: var(--bg-primary);
+                border: 1px solid var(--border-primary);
+                border-radius: var(--radius-md);
+              ">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: var(--spacing-sm);">
+            `;
+
+            for (const cc of commandClasses) {
+              const ccIdHex = `0x${cc.id.toString(16).padStart(2, "0").toUpperCase()}`;
+              const isManufacturerProprietary = cc.id === 0x91;
+              html += `
+                <div class="command-class-card" onclick="openCommandModal(${nodeId}, ${cc.id}, '${cc.name}', ${isManufacturerProprietary})" style="
+                  background: var(--bg-secondary);
+                  border: 1px solid var(--border-primary);
+                  border-radius: var(--radius-md);
+                  padding: var(--spacing-md);
+                  font-size: var(--font-size-sm);
+                ">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-xs)">
+                    <strong style="color: var(--text-primary)">${cc.name}</strong>
+                    <span style="color: var(--text-tertiary); font-family: monospace; font-size: var(--font-size-xs)">${ccIdHex}</span>
+                  </div>
+                  <div style="color: var(--text-secondary); font-size: var(--font-size-xs); margin-top: var(--spacing-xs)">
+                    Version: ${cc.version}
+                    ${cc.supported ? '<span style="color: var(--status-active); margin-left: var(--spacing-sm)">Supported</span>' : ''}
+                    ${cc.controlled ? '<span style="color: var(--status-connected); margin-left: var(--spacing-sm)">Controlled</span>' : ''}
+                    ${cc.hasAPI ? '<span style="color: var(--text-tertiary); margin-left: var(--spacing-sm)">API</span>' : ''}
+                  </div>
+                  <div style="margin-top: var(--spacing-xs); color: var(--text-tertiary); font-size: var(--font-size-xs); font-style: italic;">
+                    Click to send command
+                  </div>
+                </div>
+              `;
+            }
+
+            html += `
+                </div>
+              </div>
+            `;
+          } else if (isExpanded && !hasCommandClasses) {
+            html += `
+              <div style="
+                margin-left: var(--spacing-xl);
+                margin-bottom: var(--spacing-lg);
+                padding: var(--spacing-md);
+                background: var(--bg-primary);
+                border: 1px solid var(--border-primary);
+                border-radius: var(--radius-md);
+              ">
+                <p style="color: var(--text-tertiary)">No command classes available for this node</p>
+              </div>
+            `;
+          }
+        }
+
+        container.innerHTML = html;
+      }
+
+      // Update nodes list when nodes are loaded
+      function updateNodesListForCommands(nodes) {
+        nodesList = nodes;
+        renderAllCommandClasses();
+      }
+
+      // Load command classes when nodes are loaded
+      async function loadCommandClasses() {
+        console.log(`[Frontend] loadCommandClasses called`);
+        try {
+          const result = await sendWebSocketMessage("GET_NODES");
+          if (result.type === "NODES") {
+            console.log(`[Frontend] Got ${result.data.length} nodes`);
+            updateNodesListForCommands(result.data);
+            // Request command classes for all nodes that don't have them yet
+            for (const node of result.data) {
+              if (!nodeCommandClasses.has(node.id)) {
+                console.log(`[Frontend] Node ${node.id} missing command classes, requesting...`);
+                requestCommandClassesForNode(node.id);
+              } else {
+                console.log(`[Frontend] Node ${node.id} already has command classes`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("[Frontend] Error loading command classes:", error);
+        }
+      }
+
       // WebSocket Log Functions
       function addWSLogMessage(direction, message) {
         const timestamp = new Date();
@@ -1969,6 +2298,202 @@
           }
         }
       }
+
+      // Command Modal Functions
+      function openCommandModal(nodeId, ccId, ccName, isManufacturerProprietary) {
+        const modal = document.getElementById("commandModal");
+        const title = document.getElementById("commandModalTitle");
+        const ccNameInput = document.getElementById("commandModalCCName");
+        const nodeIdInput = document.getElementById("commandModalNodeId");
+        const ccIdInput = document.getElementById("commandModalCCId");
+        const isMPInput = document.getElementById("commandModalIsMP");
+        const mpFields = document.getElementById("mpFields");
+        const genericFields = document.getElementById("genericFields");
+
+        // Set values
+        nodeIdInput.value = nodeId;
+        ccIdInput.value = ccId;
+        isMPInput.value = isManufacturerProprietary ? "true" : "false";
+        ccNameInput.value = `${ccName} (0x${ccId.toString(16).padStart(2, "0").toUpperCase()})`;
+        title.textContent = `Send ${ccName} Command`;
+
+        // Show/hide appropriate fields
+        if (isManufacturerProprietary) {
+          mpFields.style.display = "block";
+          genericFields.style.display = "none";
+          document.getElementById("commandModalPayload").required = true;
+          document.getElementById("commandModalCCCommand").required = false;
+          document.getElementById("commandModalGenericPayload").required = false;
+        } else {
+          mpFields.style.display = "none";
+          genericFields.style.display = "block";
+          document.getElementById("commandModalPayload").required = false;
+          document.getElementById("commandModalCCCommand").required = true;
+          document.getElementById("commandModalGenericPayload").required = false;
+        }
+
+        // Reset form
+        document.getElementById("commandForm").reset();
+        nodeIdInput.value = nodeId;
+        ccIdInput.value = ccId;
+        isMPInput.value = isManufacturerProprietary ? "true" : "false";
+        ccNameInput.value = `${ccName} (0x${ccId.toString(16).padStart(2, "0").toUpperCase()})`;
+        document.getElementById("commandModalCount").value = 1;
+        if (isManufacturerProprietary) {
+          document.getElementById("commandModalManufacturerId").value = "0x0000";
+        }
+
+        // Show modal
+        modal.classList.add("active");
+      }
+
+      function closeCommandModal() {
+        const modal = document.getElementById("commandModal");
+        modal.classList.remove("active");
+      }
+
+      function closeCommandModalOnOverlay(event) {
+        if (event.target.id === "commandModal") {
+          closeCommandModal();
+        }
+      }
+
+      async function sendCommandFromModal(event) {
+        event.preventDefault();
+
+        const nodeId = parseInt(document.getElementById("commandModalNodeId").value);
+        const ccId = parseInt(document.getElementById("commandModalCCId").value);
+        const isMP = document.getElementById("commandModalIsMP").value === "true";
+        const count = parseInt(document.getElementById("commandModalCount").value) || 1;
+
+        try {
+          if (isMP) {
+            // Manufacturer Proprietary command
+            const manufacturerId = document.getElementById("commandModalManufacturerId").value;
+            const payloadHex = document.getElementById("commandModalPayload").value.trim().replace(/\s+/g, "");
+
+            if (!payloadHex || payloadHex.length !== 64) {
+              showAlert("Payload must be exactly 64 hex characters (32 bytes)", "error");
+              return;
+            }
+
+            const numericManufacturerId = manufacturerId.startsWith("0x")
+              ? parseInt(manufacturerId, 16)
+              : parseInt(manufacturerId, 16);
+
+            const result = await sendWebSocketMessage("SEND_COMMAND", {
+              nodeId: nodeId,
+              manufacturerId: numericManufacturerId,
+              payloadHex: payloadHex,
+              count: count,
+            });
+
+            if (result.type === "COMMAND_RESULT") {
+              showAlert(`Command sent successfully! Sent ${result.data.count} time(s).`, "success");
+              closeCommandModal();
+            } else if (result.type === "ERROR") {
+              showAlert(`Error: ${result.message}`, "error");
+            }
+          } else {
+            // Generic command class command
+            const ccCommand = document.getElementById("commandModalCCCommand").value.trim();
+            const payloadHex = document.getElementById("commandModalGenericPayload").value.trim().replace(/\s+/g, "") || "";
+
+            if (!ccCommand) {
+              showAlert("CC Command is required", "error");
+              return;
+            }
+
+            const numericCCCommand = ccCommand.startsWith("0x")
+              ? parseInt(ccCommand, 16)
+              : parseInt(ccCommand, 16);
+
+            if (isNaN(numericCCCommand)) {
+              showAlert("Invalid CC Command format", "error");
+              return;
+            }
+
+            const result = await sendWebSocketMessage("SEND_GENERIC_COMMAND", {
+              nodeId: nodeId,
+              ccId: ccId,
+              ccCommand: numericCCCommand,
+              payloadHex: payloadHex,
+              count: count,
+            });
+
+            if (result.type === "COMMAND_RESULT") {
+              showAlert(`Command sent successfully! Sent ${result.data.count} time(s).`, "success");
+              closeCommandModal();
+            } else if (result.type === "ERROR") {
+              showAlert(`Error: ${result.message}`, "error");
+            }
+          }
+        } catch (error) {
+          showAlert(`Error sending command: ${error.message}`, "error");
+        }
+      }
+
+      // Make functions globally accessible
+      window.openCommandModal = openCommandModal;
+      window.closeCommandModal = closeCommandModal;
+      window.closeCommandModalOnOverlay = closeCommandModalOnOverlay;
+      window.sendCommandFromModal = sendCommandFromModal;
     </script>
+      <!-- Command Modal -->
+      <div id="commandModal" class="modal-overlay" onclick="closeCommandModalOnOverlay(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+          <div class="modal-header">
+            <h2 id="commandModalTitle">Send Command</h2>
+            <button class="modal-close" onclick="closeCommandModal()" aria-label="Close">&times;</button>
+          </div>
+          <form id="commandForm" onsubmit="sendCommandFromModal(event)">
+            <input type="hidden" id="commandModalNodeId" />
+            <input type="hidden" id="commandModalCCId" />
+            <input type="hidden" id="commandModalIsMP" />
+            
+            <div class="form-group">
+              <label for="commandModalCCName">Command Class</label>
+              <input type="text" id="commandModalCCName" readonly style="background: var(--bg-tertiary); cursor: not-allowed;" />
+            </div>
+
+            <div id="mpFields" style="display: none;">
+              <div class="form-group">
+                <label for="commandModalManufacturerId">Manufacturer ID</label>
+                <input type="text" id="commandModalManufacturerId" placeholder="0x0000" value="0x0000" />
+                <small>Hex format (e.g., 0x0000)</small>
+              </div>
+              <div class="form-group">
+                <label for="commandModalPayload">Payload (32 bytes hex)</label>
+                <textarea id="commandModalPayload" rows="3" placeholder="0001020304050607080900010203040506070809000102030405060708090002" required></textarea>
+                <small>Exactly 64 hex characters (32 bytes)</small>
+              </div>
+            </div>
+
+            <div id="genericFields">
+              <div class="form-group">
+                <label for="commandModalCCCommand">CC Command</label>
+                <input type="text" id="commandModalCCCommand" placeholder="0x01" />
+                <small>Command ID in hex format (e.g., 0x01)</small>
+              </div>
+              <div class="form-group">
+                <label for="commandModalGenericPayload">Payload (hex)</label>
+                <textarea id="commandModalGenericPayload" rows="3" placeholder="01020304" /></textarea>
+                <small>Hex string (no spaces)</small>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="commandModalCount">Count</label>
+              <input type="number" id="commandModalCount" min="1" max="100" value="1" />
+              <small>Number of times to send the command (1-100)</small>
+            </div>
+
+            <div style="display: flex; gap: var(--spacing-md); justify-content: flex-end; margin-top: var(--spacing-xl);">
+              <button type="button" class="btn btn-secondary" onclick="closeCommandModal()">Cancel</button>
+              <button type="submit" class="btn btn-primary">Send Command</button>
+            </div>
+          </form>
+        </div>
+      </div>
   </body>
 </html>

@@ -37,3 +37,9 @@
 {"k":"{\"nodeId\":256,\"commandClass\":89,\"endpoint\":0,\"property\":\"info\",\"propertyKey\":1}","v":{"mode":0,"profile":1,"eventCode":0},"ts":1765934379643}
 {"k":"{\"nodeId\":256,\"commandClass\":89,\"endpoint\":0,\"property\":\"interviewComplete\"}","v":true,"ts":1765934379644}
 {"k":"{\"nodeId\":256,\"commandClass\":145,\"endpoint\":0,\"property\":\"interviewComplete\"}","v":true,"ts":1765934379644}
+{"k":"{\"nodeId\":1,\"commandClass\":114,\"endpoint\":0,\"property\":\"manufacturerId\"}","v":0,"ts":1768333132262}
+{"k":"{\"nodeId\":1,\"commandClass\":114,\"endpoint\":0,\"property\":\"productType\"}","v":4,"ts":1768333132262}
+{"k":"{\"nodeId\":1,\"commandClass\":114,\"endpoint\":0,\"property\":\"productId\"}","v":4,"ts":1768333132262}
+{"k":"{\"nodeId\":1,\"commandClass\":134,\"endpoint\":0,\"property\":\"firmwareVersions\"}","v":["7.24"],"ts":1768333132263}
+{"k":"{\"nodeId\":1,\"commandClass\":134,\"endpoint\":0,\"property\":\"zWaveProtocolVersion\"}","v":"7.24.1","ts":1768333132264}
+{"k":"{\"nodeId\":1,\"commandClass\":134,\"endpoint\":0,\"property\":\"sdkVersion\"}","v":"7.24.1","ts":1768333132264}
