@@ -39,10 +39,10 @@ export class ZWaveProvisioningClient extends EventEmitter {
 
 		// Convert security keys to buffers
 		const securityKeysBuffers = convertSecurityKeys(
-			options.securityKeys || {}
+			options.securityKeys || {},
 		);
 		const securityKeysLongRangeBuffers = convertSecurityKeys(
-			options.securityKeysLongRange || {}
+			options.securityKeysLongRange || {},
 		);
 
 		this.options = {
@@ -97,14 +97,14 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				// Verify all buffers are 16 bytes
 				const validKeys = {};
 				for (const [key, buffer] of Object.entries(
-					this.options.securityKeys
+					this.options.securityKeys,
 				)) {
 					if (Buffer.isBuffer(buffer) && buffer.length === 16) {
 						validKeys[key] = buffer;
 						console.log(
 							`✅ Security key ${key} configured: ${buffer.toString(
-								"hex"
-							)}`
+								"hex",
+							)}`,
 						);
 					} else {
 						console.warn(
@@ -112,7 +112,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 								Buffer.isBuffer(buffer)
 									? buffer.length
 									: typeof buffer
-							}`
+							}`,
 						);
 					}
 				}
@@ -121,16 +121,16 @@ export class ZWaveProvisioningClient extends EventEmitter {
 					console.log(
 						`✅ Configured ${
 							Object.keys(validKeys).length
-						} security key(s) for standard Z-Wave`
+						} security key(s) for standard Z-Wave`,
 					);
 				} else {
 					console.warn(
-						`⚠️  No valid security keys found for standard Z-Wave`
+						`⚠️  No valid security keys found for standard Z-Wave`,
 					);
 				}
 			} else {
 				console.warn(
-					`⚠️  No security keys provided for standard Z-Wave`
+					`⚠️  No security keys provided for standard Z-Wave`,
 				);
 			}
 
@@ -142,14 +142,14 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				// Verify all buffers are 16 bytes
 				const validKeys = {};
 				for (const [key, buffer] of Object.entries(
-					this.options.securityKeysLongRange
+					this.options.securityKeysLongRange,
 				)) {
 					if (Buffer.isBuffer(buffer) && buffer.length === 16) {
 						validKeys[key] = buffer;
 						console.log(
 							`✅ Long Range security key ${key} configured: ${buffer.toString(
-								"hex"
-							)}`
+								"hex",
+							)}`,
 						);
 					} else {
 						console.warn(
@@ -157,7 +157,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 								Buffer.isBuffer(buffer)
 									? buffer.length
 									: typeof buffer
-							}`
+							}`,
 						);
 					}
 				}
@@ -166,11 +166,11 @@ export class ZWaveProvisioningClient extends EventEmitter {
 					console.log(
 						`✅ Configured ${
 							Object.keys(validKeys).length
-						} security key(s) for Long Range`
+						} security key(s) for Long Range`,
 					);
 				} else {
 					console.warn(
-						`⚠️  No valid security keys found for Long Range`
+						`⚠️  No valid security keys found for Long Range`,
 					);
 				}
 			} else {
@@ -182,11 +182,11 @@ export class ZWaveProvisioningClient extends EventEmitter {
 			driverOptions.grantSecurityClasses = (requested) => {
 				console.log(
 					`[Security] 🔐 Security classes requested during bootstrapping:`,
-					requested
+					requested,
 				);
 				console.log(
 					`[Security]   Requested security classes:`,
-					requested.securityClasses
+					requested.securityClasses,
 				);
 
 				const granted = {
@@ -212,11 +212,11 @@ export class ZWaveProvisioningClient extends EventEmitter {
 						if (keyName && this.options.securityKeys?.[keyName]) {
 							granted.securityClasses.push(securityClass);
 							console.log(
-								`[Security] ✅ Granting ${keyName} (class ${securityClass}) - key available`
+								`[Security] ✅ Granting ${keyName} (class ${securityClass}) - key available`,
 							);
 						} else {
 							console.log(
-								`[Security] ❌ Not granting security class ${securityClass} - no key available`
+								`[Security] ❌ Not granting security class ${securityClass} - no key available`,
 							);
 						}
 					}
@@ -228,12 +228,12 @@ export class ZWaveProvisioningClient extends EventEmitter {
 						`[Security] ⚠️  No security classes granted! Requested:`,
 						requested.securityClasses,
 						`Available keys:`,
-						Object.keys(this.options.securityKeys || {})
+						Object.keys(this.options.securityKeys || {}),
 					);
 				} else {
 					console.log(
 						`[Security] ✅ Granting ${granted.securityClasses.length} security class(es):`,
-						granted.securityClasses
+						granted.securityClasses,
 					);
 				}
 
@@ -280,28 +280,28 @@ export class ZWaveProvisioningClient extends EventEmitter {
 					? strategy === 1
 						? "SmartStart"
 						: strategy === 0
-						? "Default"
-						: `Strategy ${strategy}`
+							? "Default"
+							: `Strategy ${strategy}`
 					: strategy;
 			const currentState = controller.inclusionState;
 			const stateName =
 				currentState === 0
 					? "Idle"
 					: currentState === 1
-					? "Including"
-					: currentState === 2
-					? "Excluding"
-					: currentState === 3
-					? "Busy"
-					: currentState === 4
-					? "SmartStart"
-					: `Unknown(${currentState})`;
+						? "Including"
+						: currentState === 2
+							? "Excluding"
+							: currentState === 3
+								? "Busy"
+								: currentState === 4
+									? "SmartStart"
+									: `Unknown(${currentState})`;
 
 			console.log(
-				`[Smart Start] Inclusion started (strategy: ${strategyName}) [${timestamp}]`
+				`[Smart Start] Inclusion started (strategy: ${strategyName}) [${timestamp}]`,
 			);
 			console.log(
-				`[Smart Start]   Current state: ${stateName} (${currentState})`
+				`[Smart Start]   Current state: ${stateName} (${currentState})`,
 			);
 
 			// If this is a Smart Start inclusion, log which provisioning entry triggered it
@@ -310,11 +310,11 @@ export class ZWaveProvisioningClient extends EventEmitter {
 					const entries = controller.getProvisioningEntries();
 					const activeEntries = entries.filter((e) => e.status === 0); // 0 = Active
 					console.log(
-						`[Smart Start]   Active provisioning entries that could trigger inclusion: ${activeEntries.length}`
+						`[Smart Start]   Active provisioning entries that could trigger inclusion: ${activeEntries.length}`,
 					);
 				} catch (err) {
 					console.warn(
-						`[Smart Start]   Could not get provisioning entries: ${err.message}`
+						`[Smart Start]   Could not get provisioning entries: ${err.message}`,
 					);
 				}
 			}
@@ -327,21 +327,21 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				currentState === 0
 					? "Idle"
 					: currentState === 1
-					? "Including"
-					: currentState === 2
-					? "Excluding"
-					: currentState === 3
-					? "Busy"
-					: currentState === 4
-					? "SmartStart"
-					: `Unknown(${currentState})`;
+						? "Including"
+						: currentState === 2
+							? "Excluding"
+							: currentState === 3
+								? "Busy"
+								: currentState === 4
+									? "SmartStart"
+									: `Unknown(${currentState})`;
 
 			console.error(`[Smart Start] ❌ Inclusion failed [${timestamp}]`);
 			console.error(
-				`[Smart Start]   Current state: ${stateName} (${currentState})`
+				`[Smart Start]   Current state: ${stateName} (${currentState})`,
 			);
 			console.error(
-				`[Smart Start] ⚠️  This may cause zwave-js to automatically retry, which can conflict with Smart Start listening mode`
+				`[Smart Start] ⚠️  This may cause zwave-js to automatically retry, which can conflict with Smart Start listening mode`,
 			);
 
 			// Log active provisioning entries
@@ -349,7 +349,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				const entries = controller.getProvisioningEntries();
 				const activeEntries = entries.filter((e) => e.status === 0); // 0 = Active
 				console.error(
-					`[Smart Start]   Active provisioning entries: ${activeEntries.length}`
+					`[Smart Start]   Active provisioning entries: ${activeEntries.length}`,
 				);
 				if (activeEntries.length > 0) {
 					activeEntries.forEach((entry, idx) => {
@@ -359,14 +359,14 @@ export class ZWaveProvisioningClient extends EventEmitter {
 							}, Protocol=${
 								entry.protocol || "ZWave"
 							}, SecurityClasses=${JSON.stringify(
-								entry.securityClasses
-							)}`
+								entry.securityClasses,
+							)}`,
 						);
 					});
 				}
 			} catch (err) {
 				console.error(
-					`[Smart Start]   Error getting provisioning entries: ${err.message}`
+					`[Smart Start]   Error getting provisioning entries: ${err.message}`,
 				);
 			}
 		});
@@ -409,7 +409,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 		try {
 			const allEntries = controller.getProvisioningEntries();
 			console.log(
-				`[Smart Start] Found ${allEntries.length} provisioning entry/entries:`
+				`[Smart Start] Found ${allEntries.length} provisioning entry/entries:`,
 			);
 			allEntries.forEach((entry, index) => {
 				const dskStr = this.normalizeDSK(entry.dsk);
@@ -422,13 +422,13 @@ export class ZWaveProvisioningClient extends EventEmitter {
 							: "Inactive"
 					}, Protocol=${
 						entry.protocol
-					}, SecurityClasses=${JSON.stringify(entry.securityClasses)}`
+					}, SecurityClasses=${JSON.stringify(entry.securityClasses)}`,
 				);
 			});
 		} catch (error) {
 			console.warn(
 				`[Smart Start] Could not list provisioning entries:`,
-				error.message
+				error.message,
 			);
 		}
 	}
@@ -462,14 +462,14 @@ export class ZWaveProvisioningClient extends EventEmitter {
 		// Some devices provide 40 hex chars (20 bytes). Try to extract a valid 32-char hex DSK.
 		if (/^[0-9A-F]{40}$/.test(cleaned)) {
 			console.warn(
-				`[DSK] ⚠️  DSK length is ${cleaned.length} (expected 32 or 40 decimal). Attempting to extract 32-character hex DSK...`
+				`[DSK] ⚠️  DSK length is ${cleaned.length} (expected 32 or 40 decimal). Attempting to extract 32-character hex DSK...`,
 			);
 			const extracted = cleaned.substring(0, 32);
 			if (/^[0-9A-F]{32}$/.test(extracted)) {
 				console.log(
 					`[DSK] ✅ Extracted 32-character hex DSK: ${extracted
 						.match(/.{1,5}/g)
-						.join("-")}`
+						.join("-")}`,
 				);
 				return extracted.match(/.{1,5}/g).join("-");
 			}
@@ -478,18 +478,18 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				console.log(
 					`[DSK] ✅ Extracted 32-character hex DSK from end: ${extractedLast
 						.match(/.{1,5}/g)
-						.join("-")}`
+						.join("-")}`,
 				);
 				return extractedLast.match(/.{1,5}/g).join("-");
 			}
 			console.error(
-				`[DSK] ❌ Could not extract valid 32-character hex DSK from 40-character input`
+				`[DSK] ❌ Could not extract valid 32-character hex DSK from 40-character input`,
 			);
 			return dsk;
 		}
 
 		console.warn(
-			`[DSK] ⚠️  DSK length is ${cleaned.length}, expected 40 decimal digits (8x5) or 32 hex characters. DSK may not work correctly.`
+			`[DSK] ⚠️  DSK length is ${cleaned.length}, expected 40 decimal digits (8x5) or 32 hex characters. DSK may not work correctly.`,
 		);
 		return dsk;
 	}
@@ -543,8 +543,8 @@ export class ZWaveProvisioningClient extends EventEmitter {
 					entry.protocol === Protocols.ZWaveLongRange
 						? "ZWaveLongRange"
 						: entry.protocol === Protocols.ZWave
-						? "ZWave"
-						: entry.protocol || "ZWave",
+							? "ZWave"
+							: entry.protocol || "ZWave",
 				nodeId: entry.nodeId || null,
 				securityClasses: securityClassesObj,
 				supportedProtocols: entry.supportedProtocols || [],
@@ -564,9 +564,9 @@ export class ZWaveProvisioningClient extends EventEmitter {
 										label: node.deviceConfig.label,
 										description:
 											node.deviceConfig.description,
-								  }
+									}
 								: null,
-					  }
+						}
 					: null,
 			};
 		});
@@ -587,12 +587,12 @@ export class ZWaveProvisioningClient extends EventEmitter {
 
 		if (originalDSK !== entry.dsk) {
 			console.log(
-				`[Provisioning] Normalized DSK: "${originalDSK}" -> "${entry.dsk}"`
+				`[Provisioning] Normalized DSK: "${originalDSK}" -> "${entry.dsk}"`,
 			);
 		}
 
 		console.log(
-			`[Provisioning] Provisioning Smart Start node with DSK: ${entry.dsk}`
+			`[Provisioning] Provisioning Smart Start node with DSK: ${entry.dsk}`,
 		);
 
 		// Check if entry already exists
@@ -601,7 +601,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 
 		if (existing) {
 			console.log(
-				`[Provisioning] Entry already exists, updating... (status: ${existing.status})`
+				`[Provisioning] Entry already exists, updating... (status: ${existing.status})`,
 			);
 		} else {
 			console.log(`[Provisioning] Creating new provisioning entry`);
@@ -655,7 +655,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 			if (Array.isArray(entry.securityClasses)) {
 				// Already an array, validate it contains valid numeric values
 				securityClassesArray = entry.securityClasses.filter(
-					(sc) => typeof sc === "number" && [0, 1, 2, 7].includes(sc)
+					(sc) => typeof sc === "number" && [0, 1, 2, 7].includes(sc),
 				);
 			} else if (typeof entry.securityClasses === "object") {
 				// Convert object format to array format
@@ -724,13 +724,13 @@ export class ZWaveProvisioningClient extends EventEmitter {
 
 		if (isLongRange && securityClassesArray.length > 0) {
 			console.log(
-				`[Provisioning] ⚠️  Long Range device with ${securityClassesArray.length} security class(es) - zwave-js will handle validation`
+				`[Provisioning] ⚠️  Long Range device with ${securityClassesArray.length} security class(es) - zwave-js will handle validation`,
 			);
 		}
 
 		console.log(
 			`[Provisioning] ✅ Processed ${securityClassesArray.length} security class(es):`,
-			securityClassesArray.length > 0 ? securityClassesArray : "none"
+			securityClassesArray.length > 0 ? securityClassesArray : "none",
 		);
 
 		// Log the final entry before provisioning
@@ -748,17 +748,17 @@ export class ZWaveProvisioningClient extends EventEmitter {
 
 		// Verify the entry was added/updated
 		const verifyEntry = this.driver.controller.getProvisioningEntry(
-			entry.dsk
+			entry.dsk,
 		);
 		if (verifyEntry) {
 			console.log(
 				`[Provisioning] ✅ Entry successfully ${
 					isNew ? "added" : "updated"
-				} (status: ${verifyEntry.status})`
+				} (status: ${verifyEntry.status})`,
 			);
 		} else {
 			console.warn(
-				`[Provisioning] ⚠️  Entry not found after provisioning - this may indicate an issue`
+				`[Provisioning] ⚠️  Entry not found after provisioning - this may indicate an issue`,
 			);
 		}
 
@@ -773,14 +773,14 @@ export class ZWaveProvisioningClient extends EventEmitter {
 		// Normalize DSK format
 		const normalizedDSK = this.normalizeDSK(dsk);
 		console.log(
-			`[Provisioning] Updating entry status: DSK=${normalizedDSK}, active=${active}`
+			`[Provisioning] Updating entry status: DSK=${normalizedDSK}, active=${active}`,
 		);
 
 		const entry =
 			this.driver.controller.getProvisioningEntry(normalizedDSK);
 		if (!entry) {
 			throw new Error(
-				`Provisioning entry not found for DSK: ${normalizedDSK}`
+				`Provisioning entry not found for DSK: ${normalizedDSK}`,
 			);
 		}
 
@@ -803,13 +803,13 @@ export class ZWaveProvisioningClient extends EventEmitter {
 			normalized = this.normalizeDSK(dskOrNodeId);
 			if (normalized !== dskOrNodeId) {
 				console.log(
-					`[Provisioning] Normalized DSK for unprovision: "${dskOrNodeId}" -> "${normalized}"`
+					`[Provisioning] Normalized DSK for unprovision: "${dskOrNodeId}" -> "${normalized}"`,
 				);
 			}
 		}
 
 		console.log(
-			`[Provisioning] Unprovisioning Smart Start node: ${normalized}`
+			`[Provisioning] Unprovisioning Smart Start node: ${normalized}`,
 		);
 		this.driver.controller.unprovisionSmartStartNode(normalized);
 	}
@@ -837,7 +837,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				} catch (error) {
 					console.warn(
 						`[Provisioning] Could not convert node ${node.id} DSK to string:`,
-						error.message
+						error.message,
 					);
 				}
 			}
@@ -863,7 +863,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 			// Unprovision all matching entries
 			if (matchingEntries.length > 0) {
 				console.log(
-					`[Provisioning] Found ${matchingEntries.length} provisioning entry/entries for node ${node.id}, unprovisioning...`
+					`[Provisioning] Found ${matchingEntries.length} provisioning entry/entries for node ${node.id}, unprovisioning...`,
 				);
 
 				for (const entry of matchingEntries) {
@@ -871,25 +871,25 @@ export class ZWaveProvisioningClient extends EventEmitter {
 					console.log(
 						`[Provisioning] Unprovisioning entry with DSK: ${normalizedDSK} (nodeId: ${
 							entry.nodeId || "none"
-						})`
+						})`,
 					);
 					controller.unprovisionSmartStartNode(normalizedDSK);
 				}
 
 				console.log(
-					`[Provisioning] ✅ Successfully unprovisioned ${matchingEntries.length} entry/entries for node ${node.id}`
+					`[Provisioning] ✅ Successfully unprovisioned ${matchingEntries.length} entry/entries for node ${node.id}`,
 				);
 			} else {
 				console.log(
 					`[Provisioning] No provisioning entries found for node ${
 						node.id
-					} (DSK: ${nodeDSK || "none"})`
+					} (DSK: ${nodeDSK || "none"})`,
 				);
 			}
 		} catch (error) {
 			console.error(
 				`[Provisioning] Error unprovisioning entries for node ${node.id}:`,
-				error
+				error,
 			);
 		}
 	}
@@ -914,7 +914,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 							manufacturer: node.deviceConfig.manufacturer,
 							label: node.deviceConfig.label,
 							description: node.deviceConfig.description,
-					  }
+						}
 					: null,
 			});
 		}
@@ -945,7 +945,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 						manufacturer: node.deviceConfig.manufacturer,
 						label: node.deviceConfig.label,
 						description: node.deviceConfig.description,
-				  }
+					}
 				: null,
 		};
 	}
@@ -983,13 +983,13 @@ export class ZWaveProvisioningClient extends EventEmitter {
 			if (!alreadySupported) {
 				node.addCC(ccId, { isSupported: true, isControlled: true });
 				console.log(
-					`⚙️  Forced Manufacturer Proprietary support on node ${node.id}`
+					`⚙️  Forced Manufacturer Proprietary support on node ${node.id}`,
 				);
 			}
 		} catch (error) {
 			console.warn(
 				`Failed to force Manufacturer Proprietary support on node ${node?.id}`,
-				error
+				error,
 			);
 		}
 	}
@@ -1002,7 +1002,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 	setupManufacturerProprietaryCommandHandler(node) {
 		if (!node || typeof node.handleCommand !== "function") {
 			console.warn(
-				`[MP Handler] Cannot setup handler for node ${node?.id}: node or handleCommand missing`
+				`[MP Handler] Cannot setup handler for node ${node?.id}: node or handleCommand missing`,
 			);
 			return;
 		}
@@ -1010,7 +1010,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 		// Check if handler is already set up (avoid double-wrapping)
 		if (node._mpHandlerAttached) {
 			console.log(
-				`[MP Handler] Handler already attached to node ${node.id}, skipping`
+				`[MP Handler] Handler already attached to node ${node.id}, skipping`,
 			);
 			return;
 		}
@@ -1027,7 +1027,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 						command.constructor?.name
 					}, instanceof check: ${
 						command instanceof ManufacturerProprietaryCC
-					}`
+					}`,
 				);
 			}
 
@@ -1063,56 +1063,56 @@ export class ZWaveProvisioningClient extends EventEmitter {
 						endpointIndex: commandData.endpointIndex,
 						commandType: command.constructor?.name,
 						ccId: command.ccId,
-					}
+					},
 				);
 
 				this.emit("manufacturerProprietaryCommand", commandData);
 
-				// @remind Answer node back (MAYBE REMOVE)
-				// Send response for manufacturer ID 0x015b
-				if (isManufacturerProprietary) {
-					try {
-						console.log(
-							`[MP Handler] 📤 Sending response for manufacturer ID 0x015b to node ${node.id}`
-						);
+				// // @remind Answer node back (MAYBE REMOVE)
+				// // Send response for manufacturer ID 0x015b
+				// if (isManufacturerProprietary) {
+				// 	try {
+				// 		console.log(
+				// 			`[MP Handler] 📤 Sending response for manufacturer ID 0x015b to node ${node.id}`
+				// 		);
 
-						this._forceManufacturerProprietarySupport(node);
+				// 		this._forceManufacturerProprietarySupport(node);
 
-						const mpAPI =
-							node.commandClasses["Manufacturer Proprietary"];
-						if (!mpAPI || typeof mpAPI.sendData !== "function") {
-							console.warn(
-								`[MP Handler] ⚠️  Cannot send response: Manufacturer Proprietary API not available for node ${node.id}`
-							);
-						} else {
-							const responsePayload = Buffer.alloc(32, 0);
-							if (command.payload && command.payload.length > 0) {
-								const receivedPayload = Buffer.from(
-									command.payload
-								);
-								receivedPayload.copy(
-									responsePayload,
-									0,
-									0,
-									Math.min(32, receivedPayload.length)
-								);
-							}
-							await mpAPI.sendData(0x01fb, responsePayload);
-							console.log(
-								`[MP Handler] ✅ Response sent to node ${
-									node.id
-								} with payload: ${responsePayload.toString(
-									"hex"
-								)}`
-							);
-						}
-					} catch (error) {
-						console.error(
-							`[MP Handler] ❌ Error sending response to node ${node.id}:`,
-							error
-						);
-					}
-				}
+				// 		const mpAPI =
+				// 			node.commandClasses["Manufacturer Proprietary"];
+				// 		if (!mpAPI || typeof mpAPI.sendData !== "function") {
+				// 			console.warn(
+				// 				`[MP Handler] ⚠️  Cannot send response: Manufacturer Proprietary API not available for node ${node.id}`
+				// 			);
+				// 		} else {
+				// 			const responsePayload = Buffer.alloc(32, 0);
+				// 			if (command.payload && command.payload.length > 0) {
+				// 				const receivedPayload = Buffer.from(
+				// 					command.payload
+				// 				);
+				// 				receivedPayload.copy(
+				// 					responsePayload,
+				// 					0,
+				// 					0,
+				// 					Math.min(32, receivedPayload.length)
+				// 				);
+				// 			}
+				// 			await mpAPI.sendData(0x01fb, responsePayload);
+				// 			console.log(
+				// 				`[MP Handler] ✅ Response sent to node ${
+				// 					node.id
+				// 				} with payload: ${responsePayload.toString(
+				// 					"hex"
+				// 				)}`
+				// 			);
+				// 		}
+				// 	} catch (error) {
+				// 		console.error(
+				// 			`[MP Handler] ❌ Error sending response to node ${node.id}:`,
+				// 			error
+				// 		);
+				// 	}
+				// }
 
 				return;
 			}
@@ -1124,7 +1124,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 		// Mark as attached
 		node._mpHandlerAttached = true;
 		console.log(
-			`[MP Handler] ✅ Handler attached to node ${node.id} (CC 0x91 will be intercepted)`
+			`[MP Handler] ✅ Handler attached to node ${node.id} (CC 0x91 will be intercepted)`,
 		);
 	}
 

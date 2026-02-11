@@ -24,7 +24,7 @@ export function hexTo32ByteBuffer(payloadHex) {
 	const buf = Buffer.from(normalized, "hex");
 	if (buf.length !== 32) {
 		throw new Error(
-			`vendorPayload must be exactly 32 bytes, got ${buf.length}`
+			`vendorPayload must be exactly 32 bytes, got ${buf.length}`,
 		);
 	}
 	return buf;
@@ -39,10 +39,10 @@ export function hexTo32ByteBuffer(payloadHex) {
 export function getManufacturerProprietaryAPI(
 	node,
 	nodeId,
-	onSupervisionUpdate
+	onSupervisionUpdate,
 ) {
 	console.log(
-		`[MP API] Getting Manufacturer Proprietary API for node ${nodeId}...`
+		`[MP API] Getting Manufacturer Proprietary API for node ${nodeId}...`,
 	);
 
 	const base = node.commandClasses["Manufacturer Proprietary"];
@@ -57,7 +57,7 @@ export function getManufacturerProprietaryAPI(
 	console.log(
 		`[MP API] Base has withOptions: ${
 			typeof base.withOptions === "function" ? "Yes" : "No"
-		}`
+		}`,
 	);
 
 	if (typeof base.withOptions === "function") {
@@ -73,7 +73,7 @@ export function getManufacturerProprietaryAPI(
 				if (update) {
 					console.log(
 						`📡 Supervision update for node ${nodeId}:`,
-						update.status ?? "unknown"
+						update.status ?? "unknown",
 					);
 				}
 			},
@@ -84,7 +84,7 @@ export function getManufacturerProprietaryAPI(
 	}
 
 	console.log(
-		`[MP API] ⚠️  Base API does not support withOptions, using base API`
+		`[MP API] ⚠️  Base API does not support withOptions, using base API`,
 	);
 	return base;
 }
@@ -129,12 +129,12 @@ export function createManufacturerProprietarySender(context) {
 		fastMode = false,
 	} = {}) {
 		console.log(
-			`\n[MP Send] ========== Starting Manufacturer Proprietary Send (Random) ==========`
+			`\n[MP Send] ========== Starting Manufacturer Proprietary Send (Random) ==========`,
 		);
 		console.log(
 			`[MP Send] Parameters: nodeId=${nodeId}, manufacturerId=0x${manufacturerId
 				.toString(16)
-				.padStart(4, "0")}, count=${count}`
+				.padStart(4, "0")}, count=${count}`,
 		);
 
 		// Step 1: Check driver
@@ -151,7 +151,7 @@ export function createManufacturerProprietarySender(context) {
 		console.log(
 			`[MP Send] Driver ready state: ${
 				isDriverReady ? "Ready" : "Not Ready"
-			}`
+			}`,
 		);
 		if (!isDriverReady) {
 			console.log(`[MP Send] ⏳ Waiting for driver to be ready...`);
@@ -172,7 +172,7 @@ export function createManufacturerProprietarySender(context) {
 		console.log(`[MP Send]   - Node status: ${node.status}`);
 		console.log(`[MP Send]   - Node ready: ${node.ready ? "Yes" : "No"}`);
 		console.log(
-			`[MP Send]   - Node protocol: ${node.protocol || "Unknown"}`
+			`[MP Send]   - Node protocol: ${node.protocol || "Unknown"}`,
 		);
 
 		// Step 4: Check node ready
@@ -185,34 +185,34 @@ export function createManufacturerProprietarySender(context) {
 
 		// Step 5: Force CC support
 		console.log(
-			`[MP Send] Step 5: Forcing Manufacturer Proprietary CC support...`
+			`[MP Send] Step 5: Forcing Manufacturer Proprietary CC support...`,
 		);
 		const hadCCBefore = !!node.commandClasses["Manufacturer Proprietary"];
 		console.log(
 			`[MP Send]   - CC 0x91 supported before forcing: ${
 				hadCCBefore ? "Yes" : "No"
-			}`
+			}`,
 		);
 		forceManufacturerProprietarySupport(node);
 		const hasCCAfter = !!node.commandClasses["Manufacturer Proprietary"];
 		console.log(
 			`[MP Send]   - CC 0x91 supported after forcing: ${
 				hasCCAfter ? "Yes" : "No"
-			}`
+			}`,
 		);
 		console.log(`[MP Send] ✅ CC support forcing completed`);
 
 		// Step 6: Get CC API
 		console.log(
-			`[MP Send] Step 6: Getting Manufacturer Proprietary CC API...`
+			`[MP Send] Step 6: Getting Manufacturer Proprietary CC API...`,
 		);
 		let ccMP = node.commandClasses["Manufacturer Proprietary"];
 		if (!ccMP) {
 			console.log(
-				`[MP Send] ❌ Failed to get Manufacturer Proprietary CC API`
+				`[MP Send] ❌ Failed to get Manufacturer Proprietary CC API`,
 			);
 			throw new Error(
-				`Node ${nodeId} does not expose Manufacturer Proprietary CC (0x91)`
+				`Node ${nodeId} does not expose Manufacturer Proprietary CC (0x91)`,
 			);
 		}
 		console.log(`[MP Send] ✅ Got Manufacturer Proprietary CC API`);
@@ -220,13 +220,13 @@ export function createManufacturerProprietarySender(context) {
 		console.log(
 			`[MP Send]   - API has sendData: ${
 				typeof ccMP.sendData === "function" ? "Yes" : "No"
-			}`
+			}`,
 		);
 
 		// Step 6.5: Configure API for fast mode if requested
 		if (fastMode && typeof ccMP.withOptions === "function") {
 			console.log(
-				`[MP Send] Step 6.5: Configuring API for fast mode (no status updates)...`
+				`[MP Send] Step 6.5: Configuring API for fast mode (no status updates)...`,
 			);
 			ccMP = ccMP.withOptions({
 				useSupervision: "auto",
@@ -235,19 +235,19 @@ export function createManufacturerProprietarySender(context) {
 			console.log(`[MP Send] ✅ API configured for fast mode`);
 		} else if (fastMode) {
 			console.log(
-				`[MP Send] ⚠️  Fast mode requested but withOptions not available`
+				`[MP Send] ⚠️  Fast mode requested but withOptions not available`,
 			);
 		}
 
 		// Step 7: Prepare for sending
 		console.log(`[MP Send] Step 7: Preparing to send ${count} frame(s)...`);
 		console.log(
-			`[MP Send] ✅ Node ${nodeId} found, sending Manufacturer Proprietary payloads (32-byte vendor payload)…`
+			`[MP Send] ✅ Node ${nodeId} found, sending Manufacturer Proprietary payloads (32-byte vendor payload)…`,
 		);
 		console.log(
 			`[MP Send]   manufacturerId = ${manufacturerId} (0x${manufacturerId
 				.toString(16)
-				.padStart(4, "0")})`
+				.padStart(4, "0")})`,
 		);
 
 		// Generate all payloads upfront
@@ -262,12 +262,12 @@ export function createManufacturerProprietarySender(context) {
 			console.log(
 				`[MP Send] Generated payload #${
 					i + 1
-				}: ${vendorPayload.toString("hex")}`
+				}: ${vendorPayload.toString("hex")}`,
 			);
 		}
 
 		console.log(
-			`[MP Send] ✅ Generated ${count} payload(s), queuing all commands for parallel processing...`
+			`[MP Send] ✅ Generated ${count} payload(s), queuing all commands for parallel processing...`,
 		);
 
 		// Queue all commands at once - they'll be processed sequentially by the driver
@@ -281,7 +281,7 @@ export function createManufacturerProprietarySender(context) {
 					.then((result) => {
 						const duration = Date.now() - startTime;
 						console.log(
-							`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`
+							`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
 						);
 						return {
 							frameNumber,
@@ -293,7 +293,7 @@ export function createManufacturerProprietarySender(context) {
 					.catch((error) => {
 						const duration = Date.now() - startTime;
 						console.log(
-							`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`
+							`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
 						);
 						return {
 							frameNumber,
@@ -302,7 +302,7 @@ export function createManufacturerProprietarySender(context) {
 							duration,
 						};
 					});
-			}
+			},
 		);
 
 		// Wait for all commands to complete
@@ -312,7 +312,7 @@ export function createManufacturerProprietarySender(context) {
 		const errors = results.filter((r) => r.error);
 		if (errors.length > 0) {
 			console.error(
-				`[MP Send] ❌ ${errors.length} frame(s) failed out of ${count}`
+				`[MP Send] ❌ ${errors.length} frame(s) failed out of ${count}`,
 			);
 			// Optionally throw or return partial results
 			// throw new Error(`${errors.length} frame(s) failed`);
@@ -321,11 +321,11 @@ export function createManufacturerProprietarySender(context) {
 		console.log(
 			`[MP Send] ✅ All ${count} frame(s) processed (${
 				count - errors.length
-			} succeeded, ${errors.length} failed)`
+			} succeeded, ${errors.length} failed)`,
 		);
 
 		console.log(
-			`\n[MP Send] ========== Finished sending Manufacturer Proprietary commands ==========`
+			`\n[MP Send] ========== Finished sending Manufacturer Proprietary commands ==========`,
 		);
 		return {
 			nodeId,
@@ -353,12 +353,12 @@ export function createManufacturerProprietarySender(context) {
 		fastMode = false,
 	}) {
 		console.log(
-			`\n[MP Send] ========== Starting Manufacturer Proprietary Send (Custom) ==========`
+			`\n[MP Send] ========== Starting Manufacturer Proprietary Send (Custom) ==========`,
 		);
 		console.log(
 			`[MP Send] Parameters: nodeId=${nodeId}, manufacturerId=0x${manufacturerId
 				.toString(16)
-				.padStart(4, "0")}, count=${count}`
+				.padStart(4, "0")}, count=${count}`,
 		);
 
 		// Step 1: Check driver
@@ -375,7 +375,7 @@ export function createManufacturerProprietarySender(context) {
 		console.log(
 			`[MP Send] Driver ready state: ${
 				isDriverReady ? "Ready" : "Not Ready"
-			}`
+			}`,
 		);
 		if (!isDriverReady) {
 			console.log(`[MP Send] ⏳ Waiting for driver to be ready...`);
@@ -389,21 +389,21 @@ export function createManufacturerProprietarySender(context) {
 		console.log(`[MP Send] Step 3: Validating vendor payload...`);
 		if (!Buffer.isBuffer(vendorPayload)) {
 			console.log(
-				`[MP Send] ❌ vendorPayload is not a Buffer (type: ${typeof vendorPayload})`
+				`[MP Send] ❌ vendorPayload is not a Buffer (type: ${typeof vendorPayload})`,
 			);
 			throw new Error("vendorPayload must be a Buffer");
 		}
 		console.log(`[MP Send] ✅ vendorPayload is a Buffer`);
 		console.log(
-			`[MP Send]   Payload length: ${vendorPayload.length} bytes`
+			`[MP Send]   Payload length: ${vendorPayload.length} bytes`,
 		);
 
 		if (vendorPayload.length !== 32) {
 			console.log(
-				`[MP Send] ❌ Payload length mismatch: expected 32, got ${vendorPayload.length}`
+				`[MP Send] ❌ Payload length mismatch: expected 32, got ${vendorPayload.length}`,
 			);
 			throw new Error(
-				`vendorPayload must be exactly 32 bytes, got ${vendorPayload.length}`
+				`vendorPayload must be exactly 32 bytes, got ${vendorPayload.length}`,
 			);
 		}
 		console.log(`[MP Send] ✅ Payload length is correct (32 bytes)`);
@@ -421,7 +421,7 @@ export function createManufacturerProprietarySender(context) {
 		console.log(`[MP Send]   - Node status: ${node.status}`);
 		console.log(`[MP Send]   - Node ready: ${node.ready ? "Yes" : "No"}`);
 		console.log(
-			`[MP Send]   - Node protocol: ${node.protocol || "Unknown"}`
+			`[MP Send]   - Node protocol: ${node.protocol || "Unknown"}`,
 		);
 
 		// Step 5: Check node ready
@@ -434,34 +434,34 @@ export function createManufacturerProprietarySender(context) {
 
 		// Step 6: Force CC support
 		console.log(
-			`[MP Send] Step 6: Forcing Manufacturer Proprietary CC support...`
+			`[MP Send] Step 6: Forcing Manufacturer Proprietary CC support...`,
 		);
 		const hadCCBefore = !!node.commandClasses["Manufacturer Proprietary"];
 		console.log(
 			`[MP Send]   - CC 0x91 supported before forcing: ${
 				hadCCBefore ? "Yes" : "No"
-			}`
+			}`,
 		);
 		forceManufacturerProprietarySupport(node);
 		const hasCCAfter = !!node.commandClasses["Manufacturer Proprietary"];
 		console.log(
 			`[MP Send]   - CC 0x91 supported after forcing: ${
 				hasCCAfter ? "Yes" : "No"
-			}`
+			}`,
 		);
 		console.log(`[MP Send] ✅ CC support forcing completed`);
 
 		// Step 7: Get CC API
 		console.log(
-			`[MP Send] Step 7: Getting Manufacturer Proprietary CC API...`
+			`[MP Send] Step 7: Getting Manufacturer Proprietary CC API...`,
 		);
 		let ccMP = node.commandClasses["Manufacturer Proprietary"];
 		if (!ccMP) {
 			console.log(
-				`[MP Send] ❌ Failed to get Manufacturer Proprietary CC API`
+				`[MP Send] ❌ Failed to get Manufacturer Proprietary CC API`,
 			);
 			throw new Error(
-				`Node ${nodeId} does not expose Manufacturer Proprietary CC (0x91)`
+				`Node ${nodeId} does not expose Manufacturer Proprietary CC (0x91)`,
 			);
 		}
 		console.log(`[MP Send] ✅ Got Manufacturer Proprietary CC API`);
@@ -469,13 +469,13 @@ export function createManufacturerProprietarySender(context) {
 		console.log(
 			`[MP Send]   - API has sendData: ${
 				typeof ccMP.sendData === "function" ? "Yes" : "No"
-			}`
+			}`,
 		);
 
 		// Step 7.5: Configure API for fast mode if requested
 		if (fastMode && typeof ccMP.withOptions === "function") {
 			console.log(
-				`[MP Send] Step 7.5: Configuring API for fast mode (no status updates)...`
+				`[MP Send] Step 7.5: Configuring API for fast mode (no status updates)...`,
 			);
 			ccMP = ccMP.withOptions({
 				useSupervision: "auto",
@@ -484,7 +484,7 @@ export function createManufacturerProprietarySender(context) {
 			console.log(`[MP Send] ✅ API configured for fast mode`);
 		} else if (fastMode) {
 			console.log(
-				`[MP Send] ⚠️  Fast mode requested but withOptions not available`
+				`[MP Send] ⚠️  Fast mode requested but withOptions not available`,
 			);
 		}
 
@@ -504,17 +504,17 @@ export function createManufacturerProprietarySender(context) {
 		// Step 9: Prepare for sending
 		console.log(`[MP Send] Step 9: Preparing to send ${count} frame(s)...`);
 		console.log(
-			`[MP Send] ✅ Node ${nodeId} found, sending CUSTOM Manufacturer Proprietary payload ${count} time(s)…`
+			`[MP Send] ✅ Node ${nodeId} found, sending CUSTOM Manufacturer Proprietary payload ${count} time(s)…`,
 		);
 		console.log(`[MP Send]   • Vendor payload (32 bytes): ${payloadHex}`);
 		console.log(
 			`[MP Send]   • Manufacturer ID: ${manufacturerId} (0x${manufacturerId
 				.toString(16)
-				.padStart(4, "0")})`
+				.padStart(4, "0")})`,
 		);
 
 		console.log(
-			`[MP Send] ✅ Queuing ${count} command(s) for parallel processing...`
+			`[MP Send] ✅ Queuing ${count} command(s) for parallel processing...`,
 		);
 
 		// Queue all commands at once - they'll be processed sequentially by the driver
@@ -528,7 +528,7 @@ export function createManufacturerProprietarySender(context) {
 				.then((result) => {
 					const duration = Date.now() - startTime;
 					console.log(
-						`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`
+						`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
 					);
 					return {
 						frameNumber,
@@ -539,7 +539,7 @@ export function createManufacturerProprietarySender(context) {
 				.catch((error) => {
 					const duration = Date.now() - startTime;
 					console.log(
-						`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`
+						`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
 					);
 					return {
 						frameNumber,
@@ -556,7 +556,7 @@ export function createManufacturerProprietarySender(context) {
 		const errors = results.filter((r) => r.error);
 		if (errors.length > 0) {
 			console.error(
-				`[MP Send] ❌ ${errors.length} frame(s) failed out of ${count}`
+				`[MP Send] ❌ ${errors.length} frame(s) failed out of ${count}`,
 			);
 			// Optionally throw or return partial results
 			// throw new Error(`${errors.length} frame(s) failed`);
@@ -565,11 +565,11 @@ export function createManufacturerProprietarySender(context) {
 		console.log(
 			`[MP Send] ✅ All ${count} frame(s) processed (${
 				count - errors.length
-			} succeeded, ${errors.length} failed)`
+			} succeeded, ${errors.length} failed)`,
 		);
 
 		console.log(
-			`\n[MP Send] ========== Finished sending CUSTOM Manufacturer Proprietary commands ==========`
+			`\n[MP Send] ========== Finished sending CUSTOM Manufacturer Proprietary commands ==========`,
 		);
 		return {
 			nodeId,
