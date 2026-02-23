@@ -52,4 +52,6 @@ test/zwavejs_*.log
 
 .vscode/extensions/zwave-js-config-editor
 
-Digilock/store
+Digilock/dist
+
+Digilock/store/cache/

@@ -319,6 +319,14 @@ export class ZWaveControllerWebsocket extends Plugin {
 					await this.handleStart(client, data, requestId);
 					break;
 
+				case "RESET_CONTROLLER":
+					await this.handleFactoryResetController(
+						client,
+						data,
+						requestId
+					);
+					break;
+
 				case "SEND_COMMAND":
 					await this.handleSendCommand(client, data, requestId);
 					break;
@@ -918,6 +926,37 @@ export class ZWaveControllerWebsocket extends Plugin {
 		}
 	}
 
+	async handleFactoryResetController(client, data, requestId) {
+		try {
+			if (!this.zwaveClient || !this.zwaveClient.driverReady) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "Driver not ready",
+				});
+				return;
+			}
+
+			await this.zwaveClient.factoryResetController();
+
+			const response = {
+				type: "CONTROLLER_FACTORY_RESET",
+				data: {
+					message:
+						"Factory reset started. Controller will re-initialize.",
+				},
+				timestamp: new Date().toISOString(),
+			};
+
+			this.sendResponse(client, requestId, response);
+			this.broadcast(response);
+		} catch (error) {
+			this.sendResponse(client, requestId, {
+				type: "ERROR",
+				message: error.message || "Failed to factory reset controller",
+			});
+		}
+	}
+
 	async handleSendCommand(client, data, requestId) {
 		try {
 			if (!this.zwaveClient || !this.zwaveClient.driverReady) {
@@ -928,23 +967,38 @@ export class ZWaveControllerWebsocket extends Plugin {
 				return;
 			}
 
-			const { payloadHex, count, nodeId, manufacturerId } = data;
+			const { payloadBytes, count, nodeId, manufacturerId } = data;
 
-			if (!payloadHex) {
+			if (!Array.isArray(payloadBytes)) {
 				this.sendResponse(client, requestId, {
 					type: "ERROR",
-					message: "payloadHex is required",
+					message: "payloadBytes is required and must be an array",
 				});
 				return;
 			}
 
 			let vendorPayload;
 			try {
-				vendorPayload = this.zwaveClient.hexTo32ByteBuffer(payloadHex);
+				const normalizedBytes = payloadBytes.map((value) => Number(value));
+				const hasInvalidByte = normalizedBytes.some(
+					(value) =>
+						!Number.isInteger(value) || value < 0 || value > 255,
+				);
+				if (hasInvalidByte) {
+					throw new Error(
+						"payloadBytes must be an array of integers between 0 and 255",
+					);
+				}
+				if (normalizedBytes.length !== 32) {
+					throw new Error(
+						`payloadBytes must be exactly 32 bytes, got ${normalizedBytes.length}`,
+					);
+				}
+				vendorPayload = Buffer.from(normalizedBytes);
 			} catch (error) {
 				this.sendResponse(client, requestId, {
 					type: "ERROR",
-					message: error.message || "Invalid payloadHex format",
+					message: error.message || "Invalid payloadBytes format",
 				});
 				return;
 			}

@@ -13,6 +13,17 @@ import {
 import { ensureCustomDeviceConfig } from "./device-config.js";
 import { ManufacturerProprietaryCC } from "../../packages/cc/src/cc/ManufacturerProprietaryCC.js";
 
+/** Required security key names; all must be present when the driver is initiated */
+const REQUIRED_SECURITY_KEYS = [
+	"S0_Legacy",
+	"S2_AccessControl",
+	"S2_Authenticated",
+	"S2_Unauthenticated",
+];
+
+/** Required Long Range security key names */
+const REQUIRED_SECURITY_KEYS_LONG_RANGE = ["S2_AccessControl", "S2_Authenticated"];
+
 /**
  * Helper function to convert hex string security keys to buffers
  */
@@ -70,6 +81,27 @@ export class ZWaveProvisioningClient extends EventEmitter {
 	async connect() {
 		try {
 			console.log(`Connecting to Z-Wave controller on ${this.port}...`);
+
+			// Fail at driver init if not all required security keys are present
+			const keys = this.options.securityKeys || {};
+			const missing = REQUIRED_SECURITY_KEYS.filter(
+				(name) => !keys[name] || !Buffer.isBuffer(keys[name]) || keys[name].length !== 16,
+			);
+			const keysLR = this.options.securityKeysLongRange || {};
+			const missingLR = REQUIRED_SECURITY_KEYS_LONG_RANGE.filter(
+				(name) => !keysLR[name] || !Buffer.isBuffer(keysLR[name]) || keysLR[name].length !== 16,
+			);
+			if (missing.length > 0 || missingLR.length > 0) {
+				const msg = [
+					missing.length > 0 && `standard: ${missing.join(", ")}`,
+					missingLR.length > 0 && `Long Range: ${missingLR.join(", ")}`,
+				]
+					.filter(Boolean)
+					.join("; ");
+				throw new Error(
+					`Security keys do not exist. Missing or invalid: ${msg}. Set ZWAVE_S0_LEGACY_KEY, ZWAVE_S2_ACCESS_CONTROL_KEY, ZWAVE_S2_AUTHENTICATED_KEY, ZWAVE_S2_UNAUTHENTICATED_KEY, ZWAVE_S2_ACCESS_CONTROL_KEY_LR, ZWAVE_S2_AUTHENTICATED_KEY_LR.`,
+				);
+			}
 
 			// Ensure custom device config exists (for forcing CC 0x91 support)
 			let deviceConfigPriorityDir =
@@ -1207,6 +1239,21 @@ export class ZWaveProvisioningClient extends EventEmitter {
 	 */
 	hexTo32ByteBuffer(payloadHex) {
 		return hexTo32ByteBuffer(payloadHex);
+	}
+
+	/**
+	 * Performs a factory reset (hard reset) on the Z-Wave controller.
+	 * This removes all network configuration and nodes from the controller.
+	 */
+	async factoryResetController() {
+		if (!this.driverReady || !this.driver) {
+			throw new Error("Driver not ready");
+		}
+
+		console.warn(
+			"[Controller] ⚠️  Factory reset requested. This will erase all controller network data.",
+		);
+		await this.driver.hardReset();
 	}
 
 	async close() {

@@ -567,6 +567,57 @@ Starts the Z-Wave driver. The WebSocket server is ready to accept connections be
 
 ---
 
+#### RESET_CONTROLLER
+
+Performs a factory reset (hard reset) on the Z-Wave controller. This is destructive and erases controller network data.
+
+**Request:**
+```json
+{
+  "type": "RESET_CONTROLLER",
+  "requestId": "req-reset-001",
+  "confirm": true
+}
+```
+
+**Request Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `confirm` | boolean | Yes | Must be `true` to confirm destructive reset |
+
+**Response:**
+```json
+{
+  "type": "CONTROLLER_FACTORY_RESET",
+  "requestId": "req-reset-001",
+  "data": {
+    "message": "Factory reset started. Controller will re-initialize."
+  },
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Error Response (Missing Confirmation):**
+```json
+{
+  "type": "ERROR",
+  "requestId": "req-reset-001",
+  "message": "Factory reset is destructive. Send { type: 'RESET_CONTROLLER', confirm: true } to proceed."
+}
+```
+
+**Error Response (Driver Not Ready):**
+```json
+{
+  "type": "ERROR",
+  "requestId": "req-reset-001",
+  "message": "Driver not ready"
+}
+```
+
+---
+
 ### Status
 
 #### GET_STATUS
@@ -618,7 +669,7 @@ Sends a custom Manufacturer Proprietary command with a specific payload to a nod
   "requestId": "req-010",
   "nodeId": 258,
   "manufacturerId": 0x0000,
-  "payloadHex": "0001020304050607080900010203040506070809000102030405060708090002",
+  "payloadBytes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
   "count": 1
 }
 ```
@@ -629,13 +680,13 @@ Sends a custom Manufacturer Proprietary command with a specific payload to a nod
 |-----------|------|----------|-------------|
 | `nodeId` | number or string | No | Target node ID (default: `2`) |
 | `manufacturerId` | number or string | No | Manufacturer ID in decimal or hex format (default: `0x0000`). Can be hex string like `"0x1234"` or `"1234"` |
-| `payloadHex` | string | Yes | Hex string representing exactly 32 bytes (64 hex characters) of payload data |
+| `payloadBytes` | array | Yes | Array of exactly 32 integers between `0` and `255` |
 | `count` | number or string | No | Number of times to send the command (default: `1`) |
 
 **Payload Format:**
-- Must be exactly 32 bytes (64 hex characters)
-- No spaces or separators
-- Example: `"0001020304050607080900010203040506070809000102030405060708090002"`
+- Must be exactly 32 items
+- Each item must be an integer from `0` to `255`
+- Example: `[0, 1, 2, ..., 31]`
 
 **Response:**
 ```json
@@ -663,7 +714,7 @@ Sends a custom Manufacturer Proprietary command with a specific payload to a nod
 {
   "type": "ERROR",
   "requestId": "req-010",
-  "message": "Invalid payloadHex format"
+  "message": "payloadBytes must be an array of integers between 0 and 255"
 }
 ```
 
@@ -672,7 +723,7 @@ Sends a custom Manufacturer Proprietary command with a specific payload to a nod
 {
   "type": "ERROR",
   "requestId": "req-010",
-  "message": "payloadHex is required"
+  "message": "payloadBytes is required and must be an array"
 }
 ```
 
@@ -718,6 +769,7 @@ All responses include a `requestId` field (if provided in the request) and a `ti
 | `NODE` | Single node information |
 | `STATUS` | Driver status information |
 | `START_SUCCESS` | Confirmation of driver start |
+| `CONTROLLER_FACTORY_RESET` | Confirmation that factory reset was initiated |
 | `COMMAND_RESULT` | Result of custom MP command |
 | `PONG` | Response to PING |
 | `ERROR` | Error response |
@@ -809,6 +861,20 @@ Sent when a generic command class command is received from a node.
 }
 ```
 
+### CONTROLLER_FACTORY_RESET
+
+Sent when a controller factory reset is initiated through `RESET_CONTROLLER`.
+
+```json
+{
+  "type": "CONTROLLER_FACTORY_RESET",
+  "data": {
+    "message": "Factory reset started. Controller will re-initialize."
+  },
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
 ### ERROR
 
 Sent when a Z-Wave error occurs.
@@ -846,8 +912,9 @@ All commands may return an error response with the following structure:
 - `"Invalid nodeId"` - Invalid or non-numeric node ID
 - `"Node not found"` - Node with specified ID does not exist
 - `"Entry not found"` - Provisioning entry with specified DSK not found
-- `"payloadHex is required"` - Missing required payloadHex parameter
-- `"Invalid payloadHex format"` - Payload hex string is not 32 bytes (64 hex characters)
+- `"payloadBytes is required and must be an array"` - Missing or invalid `payloadBytes`
+- `"payloadBytes must be an array of integers between 0 and 255"` - Payload contains invalid byte values
+- `"payloadBytes must be exactly 32 bytes, got <N>"` - Payload length is not 32 bytes
 
 ---
 
@@ -932,8 +999,13 @@ sendCommand('START', {
 sendCommand('SEND_COMMAND', {
   nodeId: 258,
   manufacturerId: 0x0000,
-  payloadHex: '0001020304050607080900010203040506070809000102030405060708090002',
+  payloadBytes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
   count: 1
+});
+
+// Example: Reset controller (destructive)
+sendCommand('RESET_CONTROLLER', {
+  confirm: true
 });
 ```
 
@@ -1013,7 +1085,7 @@ wscat -c ws://localhost:3000
 
 3. **Starting the Driver**: The `START` command initializes the Z-Wave driver connection. After a successful start, a `DRIVER_READY` event will be broadcast to all connected clients. The driver can only be started once per session.
 
-4. **Manufacturer Proprietary Commands**: The payload for `SEND_COMMAND` must be exactly 32 bytes (64 hex characters). The system will validate this format.
+4. **Manufacturer Proprietary Commands**: The payload for `SEND_COMMAND` must be `payloadBytes` with exactly 32 integer values (`0`-`255`).
 
 5. **Security Classes**: When adding provisioning entries, you can specify security classes either as individual boolean fields (`s2AccessControl`, `s2Authenticated`, etc.) or as a `securityClasses` object.
 

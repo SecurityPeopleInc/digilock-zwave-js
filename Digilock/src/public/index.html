@@ -897,6 +897,27 @@
                 Start Z-Wave Driver
               </button>
             </div>
+            <div
+              id="factoryResetSection"
+              style="
+                margin-top: 20px;
+                padding-top: 16px;
+                border-top: 1px solid var(--border-primary);
+              "
+            >
+              <p style="color: var(--alert-error-text); margin-bottom: 10px;">
+                Danger Zone: Factory reset erases all Z-Wave network data on
+                this controller.
+              </p>
+              <button
+                id="factoryResetBtn"
+                class="btn btn-danger"
+                onclick="factoryResetController()"
+                disabled
+              >
+                Factory Reset Controller
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -1129,17 +1150,16 @@
               />
             </div>
             <div class="form-group">
-              <label for="mpCustomPayload">
-                Payload (Hex String - 64 characters = 32 bytes)
+              <label for="mpCustomPayloadBytes">
+                Payload Bytes (JSON array)
               </label>
               <textarea
-                id="mpCustomPayload"
+                id="mpCustomPayloadBytes"
                 rows="3"
-                placeholder="000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+                placeholder="[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]"
               ></textarea>
               <small>
-                Enter exactly 64 hex characters (0-9, a-f). Spaces are
-                automatically removed.
+                Must be exactly 32 integers between 0 and 255.
               </small>
             </div>
             <div class="form-group">
@@ -1170,8 +1190,8 @@
             >
               Send Custom Payload
             </button>
-            <button class="btn btn-secondary" onclick="generateRandomHex()">
-              Generate Random Hex
+            <button class="btn btn-secondary" onclick="generateRandomBytes()">
+              Generate Random Bytes
             </button>
           </div>
 
@@ -1321,6 +1341,19 @@
           case "START_SUCCESS":
             showAlert("Z-Wave driver started successfully", "success");
             loadDriverStatus();
+            break;
+
+          case "CONTROLLER_FACTORY_RESET":
+            showAlert(
+              "Factory reset initiated. Controller is re-initializing.",
+              "info"
+            );
+            nodeCommandClasses.clear();
+            expandedNodes.clear();
+            loadDriverStatus();
+            loadProvisioningEntries();
+            loadNodes();
+            loadCommandClasses();
             break;
 
           case "NODE_ADDED":
@@ -1723,6 +1756,7 @@
             const portText = document.getElementById("driverPortText");
             const startSection = document.getElementById("startDriverSection");
             const startBtn = document.getElementById("startDriverBtn");
+            const factoryResetBtn = document.getElementById("factoryResetBtn");
 
             portText.textContent = status.port || "-";
 
@@ -1730,11 +1764,13 @@
               statusText.textContent = "Connected";
               statusText.className = "status-badge status-active";
               startSection.style.display = "none";
+              factoryResetBtn.disabled = false;
             } else {
               statusText.textContent = "Not Started";
               statusText.className = "status-badge status-inactive";
               startSection.style.display = "block";
               startBtn.disabled = false;
+              factoryResetBtn.disabled = true;
             }
           }
         } catch (error) {
@@ -1761,6 +1797,45 @@
           showAlert("Error starting driver: " + error.message, "error");
           startBtn.disabled = false;
           startBtn.textContent = "Start Z-Wave Driver";
+        }
+      }
+
+      async function factoryResetController() {
+        const resetBtn = document.getElementById("factoryResetBtn");
+        const confirmationText = prompt(
+          "Factory reset is destructive and cannot be undone.\n\nType RESET to confirm."
+        );
+
+        if (confirmationText !== "RESET") {
+          showAlert("Factory reset cancelled", "info");
+          return;
+        }
+
+        resetBtn.disabled = true;
+        resetBtn.textContent = "Resetting...";
+
+        try {
+          const result = await sendWebSocketMessage("RESET_CONTROLLER", {
+            confirm: true,
+          });
+
+          if (result.type === "CONTROLLER_FACTORY_RESET") {
+            showAlert(
+              "Factory reset command accepted. Controller is restarting.",
+              "info"
+            );
+            nodeCommandClasses.clear();
+            expandedNodes.clear();
+            loadDriverStatus();
+            loadProvisioningEntries();
+            loadNodes();
+            loadCommandClasses();
+          }
+        } catch (error) {
+          showAlert("Error running factory reset: " + error.message, "error");
+        } finally {
+          resetBtn.disabled = false;
+          resetBtn.textContent = "Factory Reset Controller";
         }
       }
 
@@ -1809,13 +1884,6 @@
       }
 
       async function sendRandomMP() {
-        // Generate a random 32-byte payload and send it as a custom command
-        const hexChars = "0123456789abcdef";
-        let randomHex = "";
-        for (let i = 0; i < 64; i++) {
-          randomHex += hexChars[Math.floor(Math.random() * 16)];
-        }
-
         const nodeId =
           parseInt(document.getElementById("mpRandomNodeId").value) || 2;
         const count =
@@ -1833,15 +1901,13 @@
         try {
           // Send each random payload individually
           for (let i = 0; i < count; i++) {
-            // Generate new random payload for each frame
-            let frameHex = "";
-            for (let j = 0; j < 64; j++) {
-              frameHex += hexChars[Math.floor(Math.random() * 16)];
-            }
+            const frameBytes = Array.from({ length: 32 }, () =>
+              Math.floor(Math.random() * 256)
+            );
 
             const result = await sendWebSocketMessage("SEND_COMMAND", {
               nodeId,
-              payloadHex: frameHex,
+              payloadBytes: frameBytes,
               manufacturerId,
               count: 1,
             });
@@ -1871,11 +1937,55 @@
         }
       }
 
+      function parsePayloadBytesInput(payloadBytesInput) {
+        let parsed;
+        try {
+          parsed = JSON.parse(payloadBytesInput);
+        } catch (error) {
+          throw new Error("Payload bytes must be valid JSON array syntax");
+        }
+
+        if (!Array.isArray(parsed)) {
+          throw new Error("Payload bytes must be a JSON array");
+        }
+
+        const normalizedBytes = parsed.map((value) => Number(value));
+        const hasInvalidByte = normalizedBytes.some(
+          (value) => !Number.isInteger(value) || value < 0 || value > 255
+        );
+
+        if (hasInvalidByte) {
+          throw new Error(
+            "Payload bytes must contain only integers between 0 and 255"
+          );
+        }
+
+        if (normalizedBytes.length !== 32) {
+          throw new Error(
+            `Payload bytes must contain exactly 32 values, got ${normalizedBytes.length}`
+          );
+        }
+
+        return normalizedBytes;
+      }
+
+      function hexToByteArray(hexValue) {
+        const normalized = hexValue.replace(/\s+/g, "");
+        if (!/^[0-9a-fA-F]+$/.test(normalized) || normalized.length % 2 !== 0) {
+          throw new Error("Invalid hex payload in command history");
+        }
+        const bytes = [];
+        for (let i = 0; i < normalized.length; i += 2) {
+          bytes.push(parseInt(normalized.substring(i, i + 2), 16));
+        }
+        return bytes;
+      }
+
       async function sendCustomMP() {
         const nodeId =
           parseInt(document.getElementById("mpCustomNodeId").value) || 2;
-        const payloadHex = document
-          .getElementById("mpCustomPayload")
+        const payloadBytesInput = document
+          .getElementById("mpCustomPayloadBytes")
           .value.trim();
         const manufacturerIdStr =
           document.getElementById("mpCustomManufacturerId").value || "0x0000";
@@ -1885,26 +1995,16 @@
         const count =
           parseInt(document.getElementById("mpCustomCount").value) || 1;
 
-        if (!payloadHex) {
-          showAlert("Please enter a payload", "error");
+        if (!payloadBytesInput) {
+          showAlert("Please enter payloadBytes", "error");
           return;
         }
 
-        // Validate hex string
-        const normalized = payloadHex.replace(/\s+/g, "");
-        if (!/^[0-9a-fA-F]+$/.test(normalized)) {
-          showAlert(
-            "Payload must contain only hex characters (0-9, a-f)",
-            "error"
-          );
-          return;
-        }
-
-        if (normalized.length !== 64) {
-          showAlert(
-            `Payload must be exactly 64 hex characters (32 bytes), got ${normalized.length}`,
-            "error"
-          );
+        let payloadBytes;
+        try {
+          payloadBytes = parsePayloadBytesInput(payloadBytesInput);
+        } catch (error) {
+          showAlert(error.message, "error");
           return;
         }
 
@@ -1914,10 +2014,10 @@
 
         try {
           const result = await sendWebSocketMessage("SEND_COMMAND", {
-            payloadHex: normalized,
             nodeId,
             manufacturerId,
             count,
+            payloadBytes,
           });
 
           if (result.type === "COMMAND_RESULT") {
@@ -1947,13 +2047,13 @@
         }
       }
 
-      function generateRandomHex() {
-        const hexChars = "0123456789abcdef";
-        let hex = "";
-        for (let i = 0; i < 64; i++) {
-          hex += hexChars[Math.floor(Math.random() * 16)];
-        }
-        document.getElementById("mpCustomPayload").value = hex;
+      function generateRandomBytes() {
+        const bytes = Array.from({ length: 32 }, () =>
+          Math.floor(Math.random() * 256)
+        );
+        document.getElementById("mpCustomPayloadBytes").value = JSON.stringify(
+          bytes
+        );
       }
 
       function addToMPHistory(entry) {
@@ -2012,7 +2112,13 @@
 
       function resendMPPayload(payloadHex, nodeId, manufacturerId) {
         document.getElementById("mpCustomNodeId").value = nodeId;
-        document.getElementById("mpCustomPayload").value = payloadHex;
+        try {
+          const payloadBytes = hexToByteArray(payloadHex);
+          document.getElementById("mpCustomPayloadBytes").value =
+            JSON.stringify(payloadBytes);
+        } catch {
+          document.getElementById("mpCustomPayloadBytes").value = "";
+        }
         document.getElementById(
           "mpCustomManufacturerId"
         ).value = `0x${manufacturerId.toString(16).padStart(4, "0")}`;
@@ -2321,13 +2427,11 @@
         if (isManufacturerProprietary) {
           mpFields.style.display = "block";
           genericFields.style.display = "none";
-          document.getElementById("commandModalPayload").required = true;
           document.getElementById("commandModalCCCommand").required = false;
           document.getElementById("commandModalGenericPayload").required = false;
         } else {
           mpFields.style.display = "none";
           genericFields.style.display = "block";
-          document.getElementById("commandModalPayload").required = false;
           document.getElementById("commandModalCCCommand").required = true;
           document.getElementById("commandModalGenericPayload").required = false;
         }
@@ -2370,10 +2474,18 @@
           if (isMP) {
             // Manufacturer Proprietary command
             const manufacturerId = document.getElementById("commandModalManufacturerId").value;
-            const payloadHex = document.getElementById("commandModalPayload").value.trim().replace(/\s+/g, "");
+            const payloadBytesInput = document.getElementById("commandModalPayloadBytes").value.trim();
 
-            if (!payloadHex || payloadHex.length !== 64) {
-              showAlert("Payload must be exactly 64 hex characters (32 bytes)", "error");
+            if (!payloadBytesInput) {
+              showAlert("Payload bytes are required", "error");
+              return;
+            }
+
+            let payloadBytes;
+            try {
+              payloadBytes = parsePayloadBytesInput(payloadBytesInput);
+            } catch (error) {
+              showAlert(error.message, "error");
               return;
             }
 
@@ -2384,8 +2496,8 @@
             const result = await sendWebSocketMessage("SEND_COMMAND", {
               nodeId: nodeId,
               manufacturerId: numericManufacturerId,
-              payloadHex: payloadHex,
               count: count,
+              payloadBytes: payloadBytes,
             });
 
             if (result.type === "COMMAND_RESULT") {
@@ -2463,9 +2575,9 @@
                 <small>Hex format (e.g., 0x0000)</small>
               </div>
               <div class="form-group">
-                <label for="commandModalPayload">Payload (32 bytes hex)</label>
-                <textarea id="commandModalPayload" rows="3" placeholder="0001020304050607080900010203040506070809000102030405060708090002" required></textarea>
-                <small>Exactly 64 hex characters (32 bytes)</small>
+                <label for="commandModalPayloadBytes">Payload Bytes (JSON array)</label>
+                <textarea id="commandModalPayloadBytes" rows="3" placeholder="[0, 1, 2, 3, ..., 31]"></textarea>
+                <small>Must contain exactly 32 values from 0-255.</small>
               </div>
             </div>
 

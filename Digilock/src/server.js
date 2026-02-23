@@ -8,6 +8,70 @@ import { dirname, join } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+/** Environment variable names for required Z-Wave security keys (Kotlin/ProcessBuilder) */
+const REQUIRED_SECURITY_KEY_ENV = {
+	S0_Legacy: "ZWAVE_S0_LEGACY_KEY",
+	S2_AccessControl: "ZWAVE_S2_ACCESS_CONTROL_KEY",
+	S2_Authenticated: "ZWAVE_S2_AUTHENTICATED_KEY",
+	S2_Unauthenticated: "ZWAVE_S2_UNAUTHENTICATED_KEY",
+};
+
+/** Required env vars for Long Range security keys */
+const LONG_RANGE_KEY_ENV = {
+	S2_AccessControl: "ZWAVE_S2_ACCESS_CONTROL_KEY_LR",
+	S2_Authenticated: "ZWAVE_S2_AUTHENTICATED_KEY_LR",
+};
+
+const HEX_KEY_LENGTH = 32;
+
+function isHexKey(value) {
+	return (
+		typeof value === "string" &&
+		value.length === HEX_KEY_LENGTH &&
+		/^[0-9A-Fa-f]+$/.test(value)
+	);
+}
+
+/**
+ * Load security keys from environment. Exits process with code 1 if any required key is missing.
+ * @returns {{ securityKeys: Object, securityKeysLongRange: Object }}
+ */
+function loadSecurityKeysFromEnv() {
+	const missing = [];
+	const securityKeys = {};
+	for (const [keyName, envVar] of Object.entries(REQUIRED_SECURITY_KEY_ENV)) {
+		const value = process.env[envVar];
+		if (!value || !isHexKey(value)) {
+			missing.push(envVar);
+		} else {
+			securityKeys[keyName] = value;
+		}
+	}
+	const securityKeysLongRange = {};
+	for (const [keyName, envVar] of Object.entries(LONG_RANGE_KEY_ENV)) {
+		const value = process.env[envVar];
+		if (!value || !isHexKey(value)) {
+			missing.push(envVar);
+		} else {
+			securityKeysLongRange[keyName] = value;
+		}
+	}
+	if (missing.length > 0) {
+		console.error(
+			"[FATAL] Security keys do not exist or are invalid. Set all required environment variables:",
+		);
+		missing.forEach((m) => console.error(`  - ${m}`));
+		console.error(
+			"Each key must be a 32-character hexadecimal string (16 bytes).",
+		);
+		process.exit(1);
+	}
+
+	return { securityKeys, securityKeysLongRange };
+}
+
+const { securityKeys, securityKeysLongRange } = loadSecurityKeysFromEnv();
+
 const app = express();
 const PORT = process.env.PORT || 3005;
 const ZWAVE_PORT = process.env.ZWAVE_PORT || "/dev/tty.usbserial-DK0H6JD4";
@@ -21,17 +85,17 @@ let zwaveClient = null;
 let currentPort = ZWAVE_PORT;
 let websocketPlugin = null;
 
-const securityKeys = {
-	S2_Unauthenticated: "A0ADEA1A03E4ED41C1EB5AA6D477BF80",
-	S2_Authenticated: "7AD358BD306A785992C5F1F7044B7A2D",
-	S2_AccessControl: "4D7E6B134365DB71380955FDE55035E6",
-	S0_Legacy: "72132737DD98E1FC4474E08F1DEC7FCD",
-};
+// const securityKeys = {
+// 	S2_Unauthenticated: "A0ADEA1A03E4ED41C1EB5AA6D477BF80",
+// 	S2_Authenticated: "7AD358BD306A785992C5F1F7044B7A2D",
+// 	S2_AccessControl: "4D7E6B134365DB71380955FDE55035E6",
+// 	S0_Legacy: "72132737DD98E1FC4474E08F1DEC7FCD",
+// };
 
-const securityKeysLongRange = {
-	S2_Authenticated: "09C5ECF58262835ACBBF8075F70640A2",
-	S2_AccessControl: "D96F0EAFCA380BE25C87078B93EEE12E",
-};
+// const securityKeysLongRange = {
+// 	S2_Authenticated: "09C5ECF58262835ACBBF8075F70640A2",
+// 	S2_AccessControl: "D96F0EAFCA380BE25C87078B93EEE12E",
+// };
 
 async function initializeDriver(port) {
 	// Close existing driver if it exists

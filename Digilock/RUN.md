@@ -34,7 +34,23 @@ yarn build
 
 **Note**: This may take a few minutes the first time.
 
-## Step 4: Set Environment Variables (Optional)
+## Step 4: Set Environment Variables
+
+**Required when running the process** all security keys must be set. If any is missing, the process exits with code 1 and an error listing the missing variables.
+
+```bash
+# Required – Z-Wave security keys (32 hex chars each)
+export ZWAVE_S0_LEGACY_KEY="..."
+export ZWAVE_S2_ACCESS_CONTROL_KEY="..."
+export ZWAVE_S2_AUTHENTICATED_KEY="..."
+export ZWAVE_S2_UNAUTHENTICATED_KEY="..."
+
+# Required – Long Range security keys
+export ZWAVE_S2_ACCESS_CONTROL_KEY_LR="..."
+export ZWAVE_S2_AUTHENTICATED_KEY_LR="..."
+```
+
+Optional:
 
 ```bash
 # Set your Z-Wave controller port
@@ -63,6 +79,62 @@ Or for development with auto-reload:
 ```bash
 yarn dev
 ```
+
+## Bundling for deployment
+
+You can bundle the Digilock server and its zwave-js dependencies into a single ESM file for deployment (e.g. to run from a Kotlin app via `ProcessBuilder`).
+
+### Prerequisites
+
+1. From the **repo root** (one level above `Digilock`), build all packages:
+   ```bash
+   yarn build
+   ```
+2. Install dependencies (including `esbuild`) from repo root or from `Digilock`:
+   ```bash
+   yarn install
+   ```
+
+### Create the bundle
+
+From the **Digilock** directory:
+
+```bash
+cd Digilock
+yarn bundle
+```
+
+This writes `Digilock/dist/digilock-bundle.js` (and `digilock-bundle.js.map`), and copies `public/` and `store/` into `dist/` so the bundle finds them via `__dirname`.
+
+### Run the bundle
+
+- **From the Digilock directory:**
+  ```bash
+  node dist/digilock-bundle.js
+  ```
+- **Or from `dist`** (e.g. after copying `dist/` to a deploy folder):
+  ```bash
+  cd dist && node digilock-bundle.js
+  ```
+- The bundle still requires the **serialport** native module at runtime. Either:
+  - Run from the repo (so `node_modules` from the monorepo is used), or
+  - In a standalone deploy folder, run `npm install serialport` (and use the same Node version as the bundle target).
+
+### Deploy layout (e.g. for Kotlin)
+
+Copy to your app (e.g. `/opt/myapp/`):
+
+- `dist/digilock-bundle.js` (and optionally `digilock-bundle.js.map`)
+- `public/` (static assets)
+- `store/` (cache and device-configs; can be empty at first)
+
+Set required env vars (see Step 4) and start with:
+
+```bash
+/usr/bin/node /opt/myapp/digilock-bundle.js
+```
+
+Or from Kotlin, set `command` to the path of the bundle and pass the security keys (and optional `ZWAVE_PORT`, `PORT`) in `ProcessBuilder.environment()`.
 
 ## Troubleshooting
 
