@@ -132,15 +132,11 @@ async function main() {
 			...(useBuiltPackages ? [] : [resolveJsToTsPlugin()]),
 			zwaveImportsPlugin(),
 		],
-		// Define require, __dirname, __filename with unique names to avoid conflict with bundled code
+		// Only inject require (createRequire); __dirname/__filename are set by server.js and conflict with bundled code
 		banner: {
 			js: [
 				"import { createRequire as _bundleCreateRequire } from 'module';",
-				"import { fileURLToPath as _bundleFileURLToPath } from 'url';",
-				"import * as _bundlePath from 'path';",
 				"const require = _bundleCreateRequire(import.meta.url);",
-				"const __filename = _bundleFileURLToPath(import.meta.url);",
-				"const __dirname = _bundlePath.dirname(__filename);",
 			].join("\n"),
 		},
 	});
