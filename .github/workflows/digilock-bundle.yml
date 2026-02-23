@@ -70,6 +70,8 @@ jobs:
           echo "5. **Run the bundle** (from inside \`dist/\` or with \`dist\` as cwd):" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "   node digilock-bundle.js" >> $GITHUB_STEP_SUMMARY
+          echo "   # Or pass the serial port on the CLI (e.g. for Kotlin ProcessBuilder):" >> $GITHUB_STEP_SUMMARY
+          echo "   node digilock-bundle.js --serial-port /dev/serial/by-id/usb-XXXX_YYYY-if00" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Or from a Kotlin/ProcessBuilder: set \`command\` to the path of \`digilock-bundle.js\`, put the six env vars in \`ProcessBuilder.environment()\`, and ensure \`serialport\` is installed in the same environment (e.g. \`node_modules\` next to the bundle)." >> $GITHUB_STEP_SUMMARY
+          echo "**Kotlin/ProcessBuilder:** Set \`command\` to \`/usr/bin/node\` and \`/opt/myapp/digilock-bundle.js\` (or \`zwavejs-entry.js\` if you rename it), add \`--serial-port\` and the device path as separate list elements, put the six security key env vars in \`ProcessBuilder.environment()\`, and ensure \`serialport\` is installed (e.g. \`node_modules\` next to the bundle)." >> $GITHUB_STEP_SUMMARY

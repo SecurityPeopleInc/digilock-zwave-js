@@ -72,9 +72,24 @@ function loadSecurityKeysFromEnv() {
 
 const { securityKeys, securityKeysLongRange } = loadSecurityKeysFromEnv();
 
+/**
+ * Parse --serial-port <path> from argv (e.g. for Kotlin ProcessBuilder).
+ * If present, sets process.env.ZWAVE_PORT and returns the path; otherwise returns env default.
+ */
+function getSerialPortFromArgs() {
+	const argv = process.argv.slice(2);
+	const i = argv.indexOf("--serial-port");
+	if (i !== -1 && argv[i + 1]) {
+		const port = argv[i + 1];
+		process.env.ZWAVE_PORT = port;
+		return port;
+	}
+	return process.env.ZWAVE_PORT;
+}
+
 const app = express();
 const PORT = process.env.PORT || 3005;
-const ZWAVE_PORT = process.env.ZWAVE_PORT || "/dev/tty.usbserial-DK0H6JD4";
+const ZWAVE_PORT = getSerialPortFromArgs();
 
 // Middleware
 app.use(cors());
@@ -133,14 +148,14 @@ async function initializeDriver(port) {
 
 const server = app.listen(PORT, () => {
 	console.log(
-		`Smart Start Provisioner server running on http://localhost:${PORT}`
+		`Smart Start Provisioner server running on http://localhost:${PORT}`,
 	);
 	console.log(`Z-Wave controller port: ${ZWAVE_PORT}`);
 	console.log(
-		`Set ZWAVE_PORT environment variable to change the controller port`
+		`Set ZWAVE_PORT environment variable to change the controller port`,
 	);
 	console.log(
-		`WebSocket is ready. Use the START command to initialize the Z-Wave driver.`
+		`WebSocket is ready. Use the START command to initialize the Z-Wave driver.`,
 	);
 });
 

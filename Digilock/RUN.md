@@ -116,6 +116,10 @@ This writes `Digilock/dist/digilock-bundle.js` (and `digilock-bundle.js.map`), a
   ```bash
   cd dist && node digilock-bundle.js
   ```
+- **Serial port:** You can pass it via env (`ZWAVE_PORT`) or CLI:
+  ```bash
+  node digilock-bundle.js --serial-port /dev/serial/by-id/usb-XXXX_YYYY-if00
+  ```
 - The bundle still requires the **serialport** native module at runtime. Either:
   - Run from the repo (so `node_modules` from the monorepo is used), or
   - In a standalone deploy folder, run `npm install serialport` (and use the same Node version as the bundle target).
@@ -124,17 +128,36 @@ This writes `Digilock/dist/digilock-bundle.js` (and `digilock-bundle.js.map`), a
 
 Copy to your app (e.g. `/opt/myapp/`):
 
-- `dist/digilock-bundle.js` (and optionally `digilock-bundle.js.map`)
+- `dist/digilock-bundle.js` (and optionally `digilock-bundle.js.map`) — you can rename it to `zwavejs-entry.js` if you prefer
 - `public/` (static assets)
 - `store/` (cache and device-configs; can be empty at first)
 
 Set required env vars (see Step 4) and start with:
 
 ```bash
-/usr/bin/node /opt/myapp/digilock-bundle.js
+/usr/bin/node /opt/myapp/zwavejs-entry.js --serial-port /dev/serial/by-id/usb-XXXX_YYYY-if00
 ```
 
-Or from Kotlin, set `command` to the path of the bundle and pass the security keys (and optional `ZWAVE_PORT`, `PORT`) in `ProcessBuilder.environment()`.
+Or from Kotlin:
+
+```kotlin
+val cmd = listOf(
+    "/usr/bin/node",
+    "/opt/myapp/zwavejs-entry.js",
+    "--serial-port", "/dev/serial/by-id/usb-XXXX_YYYY-if00",
+)
+val pb = ProcessBuilder(cmd)
+pb.environment().apply {
+    put("ZWAVE_S0_LEGACY_KEY", "…")
+    put("ZWAVE_S2_ACCESS_CONTROL_KEY", "…")
+    put("ZWAVE_S2_AUTHENTICATED_KEY", "…")
+    put("ZWAVE_S2_UNAUTHENTICATED_KEY", "…")
+    put("ZWAVE_S2_ACCESS_CONTROL_KEY_LR", "…")
+    put("ZWAVE_S2_AUTHENTICATED_KEY_LR", "…")
+    // optional: put("PORT", "3005")
+}
+val node = pb.start()
+```
 
 ## Troubleshooting
 
