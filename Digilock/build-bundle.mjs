@@ -132,14 +132,14 @@ async function main() {
 			...(useBuiltPackages ? [] : [resolveJsToTsPlugin()]),
 			zwaveImportsPlugin(),
 		],
-		// Define __dirname/__filename without declaring 'dirname' (avoids conflict with bundled path/pathe)
+		// Define require, __dirname, __filename with unique names to avoid conflict with bundled code
 		banner: {
 			js: [
-				"import { createRequire } from 'module';",
-				"import { fileURLToPath } from 'url';",
+				"import { createRequire as _bundleCreateRequire } from 'module';",
+				"import { fileURLToPath as _bundleFileURLToPath } from 'url';",
 				"import * as _bundlePath from 'path';",
-				"const require = createRequire(import.meta.url);",
-				"const __filename = fileURLToPath(import.meta.url);",
+				"const require = _bundleCreateRequire(import.meta.url);",
+				"const __filename = _bundleFileURLToPath(import.meta.url);",
 				"const __dirname = _bundlePath.dirname(__filename);",
 			].join("\n"),
 		},
