@@ -132,15 +132,15 @@ async function main() {
 			...(useBuiltPackages ? [] : [resolveJsToTsPlugin()]),
 			zwaveImportsPlugin(),
 		],
-		// Keep __dirname / __filename and import.meta.url working at runtime
+		// Define __dirname/__filename without declaring 'dirname' (avoids conflict with bundled path/pathe)
 		banner: {
 			js: [
 				"import { createRequire } from 'module';",
 				"import { fileURLToPath } from 'url';",
-				"import { dirname } from 'path';",
+				"import * as _bundlePath from 'path';",
 				"const require = createRequire(import.meta.url);",
 				"const __filename = fileURLToPath(import.meta.url);",
-				"const __dirname = dirname(__filename);",
+				"const __dirname = _bundlePath.dirname(__filename);",
 			].join("\n"),
 		},
 	});
