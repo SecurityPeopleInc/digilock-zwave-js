@@ -1,0 +1,75 @@
+name: Digilock bundle
+
+on:
+  workflow_dispatch:
+
+env:
+  TURBO_API: "http://127.0.0.1:9080"
+  TURBO_TOKEN: foo
+  TURBO_TEAM: me
+  TURBO_FLAGS: ""
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Prepare testing environment
+        uses: ./.github/actions/prepare-env
+        with:
+          node-version: "22"
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build packages
+        run: yarn build $TURBO_FLAGS
+
+      - name: Create Digilock bundle
+        run: |
+          cd Digilock
+          yarn bundle
+
+      - name: Upload Digilock bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: digilock-bundle
+          path: Digilock/dist/
+          retention-days: 30
+
+      - name: Add run instructions to summary
+        run: |
+          echo "## How to run the Digilock bundle" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Download the artifact** from this run (Actions tab → this workflow run → Artifacts → \`digilock-bundle\`)." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Extract** the zip. You will get a \`dist/\` folder containing:" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`digilock-bundle.js\` (and \`digilock-bundle.js.map\`)" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`public/\` (static assets)" >> $GITHUB_STEP_SUMMARY
+          echo "   - \`store/\` (cache and device-configs)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Install the \`serialport\` native module** (required at runtime):" >> $GITHUB_STEP_SUMMARY
+          echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "   cd dist" >> $GITHUB_STEP_SUMMARY
+          echo "   npm init -y" >> $GITHUB_STEP_SUMMARY
+          echo "   npm install serialport" >> $GITHUB_STEP_SUMMARY
+          echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Set required environment variables** (all six security keys):" >> $GITHUB_STEP_SUMMARY
+          echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "   export ZWAVE_S0_LEGACY_KEY=\"...\"           # 32 hex chars" >> $GITHUB_STEP_SUMMARY
+          echo "   export ZWAVE_S2_ACCESS_CONTROL_KEY=\"...\"" >> $GITHUB_STEP_SUMMARY
+          echo "   export ZWAVE_S2_AUTHENTICATED_KEY=\"...\"" >> $GITHUB_STEP_SUMMARY
+          echo "   export ZWAVE_S2_UNAUTHENTICATED_KEY=\"...\"" >> $GITHUB_STEP_SUMMARY
+          echo "   export ZWAVE_S2_ACCESS_CONTROL_KEY_LR=\"...\"" >> $GITHUB_STEP_SUMMARY
+          echo "   export ZWAVE_S2_AUTHENTICATED_KEY_LR=\"...\"" >> $GITHUB_STEP_SUMMARY
+          echo "   export ZWAVE_PORT=\"/dev/ttyUSB0\"          # optional, your serial port" >> $GITHUB_STEP_SUMMARY
+          echo "   export PORT=3005                            # optional, server port" >> $GITHUB_STEP_SUMMARY
+          echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "5. **Run the bundle** (from inside \`dist/\` or with \`dist\` as cwd):" >> $GITHUB_STEP_SUMMARY
+          echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "   node digilock-bundle.js" >> $GITHUB_STEP_SUMMARY
+          echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Or from a Kotlin/ProcessBuilder: set \`command\` to the path of \`digilock-bundle.js\`, put the six env vars in \`ProcessBuilder.environment()\`, and ensure \`serialport\` is installed in the same environment (e.g. \`node_modules\` next to the bundle)." >> $GITHUB_STEP_SUMMARY
