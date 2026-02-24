@@ -923,9 +923,15 @@ export class ZWaveControllerWebsocket extends Plugin {
 			});
 		} catch (error) {
 			console.error("Error starting driver:", error);
+			const isSerialportMissing =
+				error?.code === "ERR_MODULE_NOT_FOUND" ||
+				error?.message?.includes("Cannot find package 'serialport'");
+			const message = isSerialportMissing
+				? "The \"serialport\" native module is required to connect to a Z-Wave controller. From the folder containing the bundle, run: npm init -y && npm install serialport"
+				: (error.message || "Failed to start driver");
 			this.sendResponse(client, requestId, {
 				type: "ERROR",
-				message: error.message || "Failed to start driver",
+				message,
 			});
 		}
 	}

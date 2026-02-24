@@ -8,6 +8,10 @@ import { dirname, join } from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+/** Message shown when serialport is missing (driver cannot connect to hardware without it) */
+export const SERIALPORT_REQUIRED_MESSAGE =
+	"The \"serialport\" native module is required to connect to a Z-Wave controller. From the folder containing the bundle, run: npm init -y && npm install serialport";
+
 /** Environment variable names for required Z-Wave security keys (Kotlin/ProcessBuilder) */
 const REQUIRED_SECURITY_KEY_ENV = {
 	S0_Legacy: "ZWAVE_S0_LEGACY_KEY",
@@ -145,6 +149,13 @@ async function initializeDriver(port) {
 			websocketPlugin.setZWaveClient(zwaveClient, currentPort);
 		}
 	} catch (error) {
+		const isSerialportMissing =
+			error?.code === "ERR_MODULE_NOT_FOUND" ||
+			error?.message?.includes("Cannot find package 'serialport'");
+		if (isSerialportMissing) {
+			console.error("[FATAL]", SERIALPORT_REQUIRED_MESSAGE);
+			throw new Error(SERIALPORT_REQUIRED_MESSAGE);
+		}
 		console.error("Failed to connect to Z-Wave controller:", error);
 		throw error;
 	}
