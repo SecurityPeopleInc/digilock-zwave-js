@@ -32,9 +32,14 @@ jobs:
 
       - name: Install serialport in dist (no npm install needed after download)
         run: |
-          cd Digilock/dist
+          # Run npm in an isolated dir so it doesn't pick up repo's package.json (Yarn patch: protocol breaks npm)
+          DIST="${{ github.workspace }}/Digilock/dist"
+          cp -r "$DIST" /tmp/digilock-dist
+          cd /tmp/digilock-dist
           npm init -y
           npm install serialport --omit=dev
+          cp -r node_modules package.json "$DIST/"
+          [ -f package-lock.json ] && cp package-lock.json "$DIST/"
 
       - name: Upload Digilock bundle artifact
         uses: actions/upload-artifact@v4
