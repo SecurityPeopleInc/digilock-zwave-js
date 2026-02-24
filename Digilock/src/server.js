@@ -72,29 +72,31 @@ function loadSecurityKeysFromEnv() {
 
 const { securityKeys, securityKeysLongRange } = loadSecurityKeysFromEnv();
 
-/**
- * Parse --serial-port <path> from argv (e.g. for Kotlin ProcessBuilder).
- * If present, sets process.env.ZWAVE_PORT and returns the path; otherwise returns env default.
- */
-function getSerialPortFromArgs() {
-	const argv = process.argv.slice(2);
-	const i = argv.indexOf("--serial-port");
-	if (i !== -1 && argv[i + 1]) {
-		const port = argv[i + 1];
-		process.env.ZWAVE_PORT = port;
-		return port;
+/** Serial port must be set via ZWAVE_PORT (required for the bundle). */
+function getRequiredZwavePort() {
+	const port = process.env.ZWAVE_PORT;
+	if (!port || typeof port !== "string" || port.trim() === "") {
+		console.error(
+			"[FATAL] Z-Wave serial port not set. Set the ZWAVE_PORT environment variable (e.g. /dev/serial/by-id/usb-XXXX_YYYY-if00).",
+		);
+		process.exit(1);
 	}
-	return process.env.ZWAVE_PORT;
+	return port.trim();
 }
 
 const app = express();
 const PORT = process.env.PORT || 3005;
-const ZWAVE_PORT = getSerialPortFromArgs();
+const ZWAVE_PORT = getRequiredZwavePort();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(join(__dirname, "public")));
+const publicDir = join(__dirname, "public");
+app.use(express.static(publicDir));
+// Ensure GET / serves the frontend (avoids "Cannot GET /" when static root is wrong e.g. in bundle)
+app.get("/", (req, res) => {
+	res.sendFile(join(publicDir, "index.html"));
+});
 
 let zwaveClient = null;
 let currentPort = ZWAVE_PORT;

@@ -30,6 +30,12 @@ jobs:
           cd Digilock
           yarn bundle
 
+      - name: Install serialport in dist (no npm install needed after download)
+        run: |
+          cd Digilock/dist
+          npm init -y
+          npm install serialport --omit=dev
+
       - name: Upload Digilock bundle artifact
         uses: actions/upload-artifact@v4
         with:
@@ -43,19 +49,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "1. **Download the artifact** from this run (Actions tab → this workflow run → Artifacts → \`digilock-bundle\`)." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Extract** the zip. You will get a \`dist/\` folder containing:" >> $GITHUB_STEP_SUMMARY
-          echo "   - \`digilock-bundle.js\` (and \`digilock-bundle.js.map\`)" >> $GITHUB_STEP_SUMMARY
-          echo "   - \`public/\` (static assets)" >> $GITHUB_STEP_SUMMARY
-          echo "   - \`store/\` (cache and device-configs)" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Extract** the zip. You get a \`dist/\` folder with the bundle, \`public/\`, \`store/\`, and \`node_modules/\` (serialport included). **No npm install needed.**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "3. **Install the \`serialport\` native module** (required at runtime):" >> $GITHUB_STEP_SUMMARY
-          echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "   cd dist" >> $GITHUB_STEP_SUMMARY
-          echo "   npm init -y" >> $GITHUB_STEP_SUMMARY
-          echo "   npm install serialport" >> $GITHUB_STEP_SUMMARY
-          echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "4. **Set required environment variables** (all six security keys):" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Set required environment variables** (six security keys + serial port):" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "   export ZWAVE_S0_LEGACY_KEY=\"...\"           # 32 hex chars" >> $GITHUB_STEP_SUMMARY
           echo "   export ZWAVE_S2_ACCESS_CONTROL_KEY=\"...\"" >> $GITHUB_STEP_SUMMARY
@@ -63,15 +59,13 @@ jobs:
           echo "   export ZWAVE_S2_UNAUTHENTICATED_KEY=\"...\"" >> $GITHUB_STEP_SUMMARY
           echo "   export ZWAVE_S2_ACCESS_CONTROL_KEY_LR=\"...\"" >> $GITHUB_STEP_SUMMARY
           echo "   export ZWAVE_S2_AUTHENTICATED_KEY_LR=\"...\"" >> $GITHUB_STEP_SUMMARY
-          echo "   export ZWAVE_PORT=\"/dev/ttyUSB0\"          # optional, your serial port" >> $GITHUB_STEP_SUMMARY
+          echo "   export ZWAVE_PORT=\"/dev/serial/by-id/usb-XXXX_YYYY-if00\"   # required" >> $GITHUB_STEP_SUMMARY
           echo "   export PORT=3005                            # optional, server port" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "5. **Run the bundle** (from inside \`dist/\` or with \`dist\` as cwd):" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Run** (from inside \`dist/\`):" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "   node digilock-bundle.js" >> $GITHUB_STEP_SUMMARY
-          echo "   # Or pass the serial port on the CLI (e.g. for Kotlin ProcessBuilder):" >> $GITHUB_STEP_SUMMARY
-          echo "   node digilock-bundle.js --serial-port /dev/serial/by-id/usb-XXXX_YYYY-if00" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Kotlin/ProcessBuilder:** Set \`command\` to \`/usr/bin/node\` and \`/opt/myapp/digilock-bundle.js\` (or \`zwavejs-entry.js\` if you rename it), add \`--serial-port\` and the device path as separate list elements, put the six security key env vars in \`ProcessBuilder.environment()\`, and ensure \`serialport\` is installed (e.g. \`node_modules\` next to the bundle)." >> $GITHUB_STEP_SUMMARY
+          echo "**Kotlin/ProcessBuilder:** Set \`command\` to \`/usr/bin/node\` and the path to \`digilock-bundle.js\`. Put all seven env vars (six security keys + \`ZWAVE_PORT\`) in \`ProcessBuilder.environment()\`. No \`--serial-port\` argument; port is from \`ZWAVE_PORT\` only." >> $GITHUB_STEP_SUMMARY
