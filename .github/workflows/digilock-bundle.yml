@@ -42,6 +42,20 @@ jobs:
           npm install serialport --omit=dev
           cp -r node_modules "$DIST/"
 
+      - name: Trim node_modules (minimal runtime, Linux x64 only)
+        run: |
+          DIST="${{ github.workspace }}/Digilock/dist/node_modules"
+          # Remove test mock (not used at runtime)
+          rm -rf "$DIST/@serialport/binding-mock"
+          # Keep only Linux x64 prebuild (artifact targets ubuntu/linux x64)
+          PREBUILDS="$DIST/@serialport/bindings-cpp/prebuilds"
+          for d in "$PREBUILDS"/*/; do
+            [ "$(basename "$d")" = "linux-x64" ] || rm -rf "$d"
+          done
+          # Remove C++ source and build files from bindings-cpp (prebuilds are enough)
+          rm -rf "$DIST/@serialport/bindings-cpp/src" "$DIST/@serialport/bindings-cpp/tools"
+          rm -f "$DIST/@serialport/bindings-cpp"/*.gypi "$DIST/@serialport/bindings-cpp"/*.gyp "$DIST/@serialport/bindings-cpp"/*.c "$DIST/@serialport/bindings-cpp"/*.h 2>/dev/null || true
+
       - name: Upload Digilock bundle artifact
         uses: actions/upload-artifact@v4
         with:
@@ -55,7 +69,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "1. **Download the artifact** from this run (Actions tab → this workflow run → Artifacts → \`digilock-bundle\`)." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Extract** the zip. You get \`dist/\` with \`digilock-bundle.js\`, \`public/\`, and \`node_modules/\` (serialport included). No package.json or package-lock.json. Cache and device-config dirs are created at runtime (use \`ZWAVE_CACHE_DIR\` to set the cache path)." >> $GITHUB_STEP_SUMMARY
+          echo "2. **Extract** the zip. You get \`dist/\` with \`digilock-bundle.js\`, \`public/\`, and a trimmed \`node_modules/\` (serialport, Linux x64 only). No package.json or package-lock.json. Cache and device-config dirs are created at runtime (use \`ZWAVE_CACHE_DIR\`). **Artifact is built for Linux x64**; on other OS/arch install serialport locally." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "3. **Set required environment variables** (six security keys + serial port):" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY
