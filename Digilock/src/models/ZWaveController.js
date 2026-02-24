@@ -78,7 +78,7 @@ export class ZWaveController extends EventEmitter {
     try {
       console.log(`Connecting to Z-Wave controller on ${this.port}...`);
 
-      // Ensure custom device config exists (for forcing CC 0x91 support)
+      // Ensure device config directory exists
       let deviceConfigPriorityDir = this.options.deviceConfigPriorityDir;
       if (!deviceConfigPriorityDir) {
         // Default to store/device-configs if not specified

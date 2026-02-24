@@ -30,6 +30,9 @@ jobs:
           cd Digilock
           yarn bundle
 
+      - name: Remove store from dist (cache/config created at runtime)
+        run: rm -rf Digilock/dist/store
+
       - name: Upload Digilock bundle artifact
         uses: actions/upload-artifact@v4
         with:
@@ -43,7 +46,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "1. **Download the artifact** from this run (Actions tab → this workflow run → Artifacts → \`digilock-bundle\`)." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Extract** the zip. You get a \`dist/\` folder with \`digilock-bundle.js\`, \`public/\`, and \`store/\`. The bundle requires the \`serialport\` native module at runtime—run from an environment where it is already installed (e.g. the repo after \`yarn install\`) or install it where you run the bundle." >> $GITHUB_STEP_SUMMARY
+          echo "2. **Extract** the zip. You get a \`dist/\` folder with \`digilock-bundle.js\` and \`public/\`. Cache and device-config dirs are created at runtime (use \`ZWAVE_CACHE_DIR\` to set the cache path). The bundle requires the \`serialport\` native module at runtime—run from an environment where it is already installed (e.g. the repo after \`yarn install\`) or install it where you run the bundle." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "3. **Set required environment variables** (six security keys + serial port):" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY

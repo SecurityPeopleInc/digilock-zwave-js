@@ -103,7 +103,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				);
 			}
 
-			// Ensure custom device config exists (for forcing CC 0x91 support)
+			// Ensure device config directory exists
 			let deviceConfigPriorityDir =
 				this.options.storage.deviceConfigPriorityDir;
 			if (!deviceConfigPriorityDir) {

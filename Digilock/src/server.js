@@ -132,7 +132,7 @@ async function initializeDriver(port) {
 		logLevel: LOG_LEVEL,
 		securityKeys: securityKeys,
 		securityKeysLongRange: securityKeysLongRange,
-		deviceConfigPriorityDir: "./store/device-configs", // For forcing CC 0x91 support
+		deviceConfigPriorityDir: "./store/device-configs",
 	});
 
 	try {

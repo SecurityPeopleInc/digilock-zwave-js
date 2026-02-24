@@ -1,4 +1,4 @@
-import { mkdir, writeFile, access } from "fs/promises";
+import { mkdir, writeFile } from "fs/promises";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -6,12 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * Ensures the custom device config directory exists and contains
- * a device config file that forces Manufacturer Proprietary (0x91) support.
- *
- * This is necessary because zwave-js blocks CC 0x91 if it's not advertised
- * in the node's NIF. By creating a custom device config with compat settings,
- * we can force zwave-js to treat CC 0x91 as supported for specific devices.
+ * Ensures the device config directory exists. Per-node configs (e.g. from
+ * createDeviceConfigForNode) are written here when needed.
  *
  * @param {string} configDir - Path to the device config directory
  * @returns {Promise<string>} The path to the config directory
@@ -19,70 +15,8 @@ const __dirname = dirname(__filename);
 export async function ensureCustomDeviceConfig(
   configDir = "./store/device-configs"
 ) {
-  try {
-    // Ensure directory exists
-    await mkdir(configDir, { recursive: true });
-
-    // Path to the device config file
-    const configFilePath = join(configDir, "silabs-lr-dev.json");
-
-    // Check if file already exists
-    try {
-      await access(configFilePath);
-      console.log(
-        `✅ Custom device config already exists at ${configFilePath}`
-      );
-      return configDir;
-    } catch {
-      // File doesn't exist, create it
-    }
-
-    // Create the device config JSON
-    // This config forces CC 0x91 (Manufacturer Proprietary) to be treated as supported
-    // for Silicon Labs dev boards (manufacturerId 0x0000, productType/productId 0x0004)
-    const deviceConfig = {
-      manufacturer: "Silicon Labs (dev board)",
-      manufacturerId: "0x0000",
-      label: "Silabs LR Dev (hack)",
-      description:
-        "Dev board with Manufacturer Proprietary CC forced on for testing.",
-      devices: [
-        {
-          productType: "0x0004",
-          productId: "0x0004",
-        },
-      ],
-      firmwareVersion: {
-        min: "0.0",
-        max: "255.255",
-      },
-      compat: {
-        commandClasses: {
-          add: {
-            91: {
-              isSupported: true,
-            },
-          },
-        },
-      },
-    };
-
-    // Write the config file
-    await writeFile(
-      configFilePath,
-      JSON.stringify(deviceConfig, null, 2),
-      "utf8"
-    );
-    console.log(`✅ Created custom device config at ${configFilePath}`);
-    console.log(
-      `   This config forces Manufacturer Proprietary (CC 0x91) support for Silicon Labs dev boards`
-    );
-
-    return configDir;
-  } catch (error) {
-    console.error("Failed to ensure custom device config:", error);
-    throw error;
-  }
+  await mkdir(configDir, { recursive: true });
+  return configDir;
 }
 
 /**
