@@ -30,17 +30,6 @@ jobs:
           cd Digilock
           yarn bundle
 
-      - name: Install serialport in dist (no npm install needed after download)
-        run: |
-          # Run npm in an isolated dir so it doesn't pick up repo's package.json (Yarn patch: protocol breaks npm)
-          DIST="${{ github.workspace }}/Digilock/dist"
-          cp -r "$DIST" /tmp/digilock-dist
-          cd /tmp/digilock-dist
-          npm init -y
-          npm install serialport --omit=dev
-          cp -r node_modules package.json "$DIST/"
-          [ -f package-lock.json ] && cp package-lock.json "$DIST/"
-
       - name: Upload Digilock bundle artifact
         uses: actions/upload-artifact@v4
         with:
@@ -54,7 +43,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "1. **Download the artifact** from this run (Actions tab → this workflow run → Artifacts → \`digilock-bundle\`)." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "2. **Extract** the zip. You get a \`dist/\` folder with the bundle, \`public/\`, \`store/\`, and \`node_modules/\` (serialport included). **No npm install needed.**" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Extract** the zip. You get a \`dist/\` folder with \`digilock-bundle.js\`, \`public/\`, and \`store/\`. The bundle requires the \`serialport\` native module at runtime—run from an environment where it is already installed (e.g. the repo after \`yarn install\`) or install it where you run the bundle." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "3. **Set required environment variables** (six security keys + serial port):" >> $GITHUB_STEP_SUMMARY
           echo "   \`\`\`bash" >> $GITHUB_STEP_SUMMARY

@@ -87,6 +87,8 @@ function getRequiredZwavePort() {
 const app = express();
 const PORT = process.env.PORT || 3005;
 const ZWAVE_PORT = getRequiredZwavePort();
+const CACHE_DIR = process.env.ZWAVE_CACHE_DIR || "./store/cache";
+const LOG_LEVEL = process.env.ZWAVE_LOG_LEVEL || "silly";
 
 // Middleware
 app.use(cors());
@@ -126,8 +128,8 @@ async function initializeDriver(port) {
 
 	// Create new client with security keys
 	zwaveClient = new ZWaveProvisioningClient(port, {
-		cacheDir: "./store/cache",
-		logLevel: "silly",
+		cacheDir: CACHE_DIR,
+		logLevel: LOG_LEVEL,
 		securityKeys: securityKeys,
 		securityKeysLongRange: securityKeysLongRange,
 		deviceConfigPriorityDir: "./store/device-configs", // For forcing CC 0x91 support
@@ -170,6 +172,8 @@ websocketPlugin = plugin.apply(null, {
 	initializeDriver, // Pass the function to start the driver
 	securityKeys,
 	securityKeysLongRange,
+	cacheDir: CACHE_DIR,
+	logLevel: LOG_LEVEL,
 });
 
 process.on("SIGINT", async () => {

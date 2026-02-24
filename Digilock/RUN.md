@@ -58,6 +58,12 @@ Optional:
 ```bash
 # Set server port (defaults to 3005)
 export PORT=3005
+
+# Cache directory for Z-Wave driver (defaults to ./store/cache)
+export ZWAVE_CACHE_DIR="/path/to/cache"
+
+# Log level: silly | debug | verbose | info | warn | error (defaults to silly)
+export ZWAVE_LOG_LEVEL="debug"
 ```
 
 To find your Z-Wave controller port on macOS:
@@ -117,11 +123,11 @@ This writes `Digilock/dist/digilock-bundle.js` (and `digilock-bundle.js.map`), a
   cd dist && node digilock-bundle.js
   ```
 - **Serial port:** Set the **ZWAVE_PORT** environment variable (required); there is no CLI argument.
-- **Node modules:** The GitHub Action artifact includes `node_modules` (with `serialport`), so no `npm install` is needed after download. For a local bundle, run `npm install serialport` in `dist/` or run from the repo so the monorepo `node_modules` is used.
+- **Serialport:** The bundle requires the `serialport` native module at runtime. Run from the repo (so monorepo `node_modules` is used) or run `npm install serialport` in `dist/` after extracting the artifact.
 
 ### Deploy layout (e.g. for Kotlin)
 
-Copy to your app (e.g. `/opt/myapp/`): the whole **dist/** folder from the artifact (bundle, `public/`, `store/`, `node_modules/`). No `npm install` needed.
+Copy to your app (e.g. `/opt/myapp/`): the **dist/** folder from the artifact (bundle, `public/`, `store/`). Ensure `serialport` is available at runtime (e.g. run from a directory that has `node_modules` with serialport, or install it where you run the bundle).
 
 Set required env vars (see Step 4), including **ZWAVE_PORT**, then start with:
 

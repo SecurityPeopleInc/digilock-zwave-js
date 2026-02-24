@@ -33,6 +33,8 @@ export class ZWaveControllerWebsocket extends Plugin {
 	 * @param {Function} options.initializeDriver - Function to initialize the driver (optional)
 	 * @param {Object} options.securityKeys - Security keys for Z-Wave (optional)
 	 * @param {Object} options.securityKeysLongRange - Security keys for Z-Wave Long Range (optional)
+	 * @param {string} options.cacheDir - Cache directory path (optional, default "./store/cache")
+	 * @param {string} options.logLevel - Log level (optional, default "silly")
 	 */
 	apply(target, options = {}) {
 		if (!options.server) {
@@ -44,6 +46,8 @@ export class ZWaveControllerWebsocket extends Plugin {
 		this.initializeDriver = options.initializeDriver || null;
 		this.securityKeys = options.securityKeys || null;
 		this.securityKeysLongRange = options.securityKeysLongRange || null;
+		this.cacheDir = options.cacheDir ?? "./store/cache";
+		this.logLevel = options.logLevel ?? "silly";
 
 		this.wss = new WebSocketServer({ server: options.server });
 
@@ -896,8 +900,8 @@ export class ZWaveControllerWebsocket extends Plugin {
 			}
 
 			this.zwaveClient = new ZWaveProvisioningClient(port, {
-				cacheDir: "./store/cache",
-				logLevel: "silly",
+				cacheDir: this.cacheDir,
+				logLevel: this.logLevel,
 				securityKeys: this.securityKeys,
 				securityKeysLongRange: this.securityKeysLongRange,
 				deviceConfigPriorityDir: "./store/device-configs",
