@@ -22,7 +22,10 @@ const REQUIRED_SECURITY_KEYS = [
 ];
 
 /** Required Long Range security key names */
-const REQUIRED_SECURITY_KEYS_LONG_RANGE = ["S2_AccessControl", "S2_Authenticated"];
+const REQUIRED_SECURITY_KEYS_LONG_RANGE = [
+	"S2_AccessControl",
+	"S2_Authenticated",
+];
 
 /**
  * Helper function to convert hex string security keys to buffers
@@ -85,16 +88,23 @@ export class ZWaveProvisioningClient extends EventEmitter {
 			// Fail at driver init if not all required security keys are present
 			const keys = this.options.securityKeys || {};
 			const missing = REQUIRED_SECURITY_KEYS.filter(
-				(name) => !keys[name] || !Buffer.isBuffer(keys[name]) || keys[name].length !== 16,
+				(name) =>
+					!keys[name] ||
+					!Buffer.isBuffer(keys[name]) ||
+					keys[name].length !== 16,
 			);
 			const keysLR = this.options.securityKeysLongRange || {};
 			const missingLR = REQUIRED_SECURITY_KEYS_LONG_RANGE.filter(
-				(name) => !keysLR[name] || !Buffer.isBuffer(keysLR[name]) || keysLR[name].length !== 16,
+				(name) =>
+					!keysLR[name] ||
+					!Buffer.isBuffer(keysLR[name]) ||
+					keysLR[name].length !== 16,
 			);
 			if (missing.length > 0 || missingLR.length > 0) {
 				const msg = [
 					missing.length > 0 && `standard: ${missing.join(", ")}`,
-					missingLR.length > 0 && `Long Range: ${missingLR.join(", ")}`,
+					missingLR.length > 0 &&
+						`Long Range: ${missingLR.join(", ")}`,
 				]
 					.filter(Boolean)
 					.join("; ");
@@ -1100,51 +1110,51 @@ export class ZWaveProvisioningClient extends EventEmitter {
 
 				this.emit("manufacturerProprietaryCommand", commandData);
 
-				// // @remind Answer node back (MAYBE REMOVE)
-				// // Send response for manufacturer ID 0x015b
-				// if (isManufacturerProprietary) {
-				// 	try {
-				// 		console.log(
-				// 			`[MP Handler] 📤 Sending response for manufacturer ID 0x015b to node ${node.id}`
-				// 		);
+				// @remind Answer node back (MAYBE REMOVE)
+				// Send response for manufacturer ID 0x015b
+				if (isManufacturerProprietary) {
+					try {
+						console.log(
+							`[MP Handler] 📤 Sending response for manufacturer ID 0x015b to node ${node.id}`,
+						);
 
-				// 		this._forceManufacturerProprietarySupport(node);
+						this._forceManufacturerProprietarySupport(node);
 
-				// 		const mpAPI =
-				// 			node.commandClasses["Manufacturer Proprietary"];
-				// 		if (!mpAPI || typeof mpAPI.sendData !== "function") {
-				// 			console.warn(
-				// 				`[MP Handler] ⚠️  Cannot send response: Manufacturer Proprietary API not available for node ${node.id}`
-				// 			);
-				// 		} else {
-				// 			const responsePayload = Buffer.alloc(32, 0);
-				// 			if (command.payload && command.payload.length > 0) {
-				// 				const receivedPayload = Buffer.from(
-				// 					command.payload
-				// 				);
-				// 				receivedPayload.copy(
-				// 					responsePayload,
-				// 					0,
-				// 					0,
-				// 					Math.min(32, receivedPayload.length)
-				// 				);
-				// 			}
-				// 			await mpAPI.sendData(0x01fb, responsePayload);
-				// 			console.log(
-				// 				`[MP Handler] ✅ Response sent to node ${
-				// 					node.id
-				// 				} with payload: ${responsePayload.toString(
-				// 					"hex"
-				// 				)}`
-				// 			);
-				// 		}
-				// 	} catch (error) {
-				// 		console.error(
-				// 			`[MP Handler] ❌ Error sending response to node ${node.id}:`,
-				// 			error
-				// 		);
-				// 	}
-				// }
+						const mpAPI =
+							node.commandClasses["Manufacturer Proprietary"];
+						if (!mpAPI || typeof mpAPI.sendData !== "function") {
+							console.warn(
+								`[MP Handler] ⚠️  Cannot send response: Manufacturer Proprietary API not available for node ${node.id}`,
+							);
+						} else {
+							const responsePayload = Buffer.alloc(32, 0);
+							if (command.payload && command.payload.length > 0) {
+								const receivedPayload = Buffer.from(
+									command.payload,
+								);
+								receivedPayload.copy(
+									responsePayload,
+									0,
+									0,
+									Math.min(32, receivedPayload.length),
+								);
+							}
+							await mpAPI.sendData(0x01fb, responsePayload);
+							console.log(
+								`[MP Handler] ✅ Response sent to node ${
+									node.id
+								} with payload: ${responsePayload.toString(
+									"hex",
+								)}`,
+							);
+						}
+					} catch (error) {
+						console.error(
+							`[MP Handler] ❌ Error sending response to node ${node.id}:`,
+							error,
+						);
+					}
+				}
 
 				return;
 			}
