@@ -94,9 +94,16 @@ export function getManufacturerProprietaryAPI(
  * @param {Object} context - Context object with driver, driverReady, waitForDriverReady, and forceManufacturerProprietarySupport
  * @returns {Object} Object containing sendManufacturerProprietaryRandom and sendManufacturerProprietaryCustom functions
  */
+function reportCommandSent(context, data) {
+	context.onCommandSent?.(data);
+}
+
 export function createManufacturerProprietarySender(context) {
-	const { driver, waitForDriverReady, forceManufacturerProprietarySupport } =
-		context;
+	const {
+		driver,
+		waitForDriverReady,
+		forceManufacturerProprietarySupport,
+	} = context;
 
 	// Helper to get current driverReady state
 	const getDriverReady = () => {
@@ -283,6 +290,17 @@ export function createManufacturerProprietarySender(context) {
 						console.log(
 							`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
 						);
+						reportCommandSent(context, {
+							nodeId,
+							ccId: 0x91,
+							commandClass: "Manufacturer Proprietary",
+							manufacturerId,
+							payloadHex,
+							frameNumber,
+							success: true,
+							duration,
+							source: "manufacturer_proprietary",
+						});
 						return {
 							frameNumber,
 							payloadHex,
@@ -295,6 +313,18 @@ export function createManufacturerProprietarySender(context) {
 						console.log(
 							`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
 						);
+						reportCommandSent(context, {
+							nodeId,
+							ccId: 0x91,
+							commandClass: "Manufacturer Proprietary",
+							manufacturerId,
+							payloadHex,
+							frameNumber,
+							success: false,
+							error: error.message,
+							duration,
+							source: "manufacturer_proprietary",
+						});
 						return {
 							frameNumber,
 							payloadHex,
@@ -530,6 +560,17 @@ export function createManufacturerProprietarySender(context) {
 					console.log(
 						`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
 					);
+					reportCommandSent(context, {
+						nodeId,
+						ccId: 0x91,
+						commandClass: "Manufacturer Proprietary",
+						manufacturerId,
+						payloadHex,
+						frameNumber,
+						success: true,
+						duration,
+						source: "manufacturer_proprietary",
+					});
 					return {
 						frameNumber,
 						result,
@@ -541,6 +582,18 @@ export function createManufacturerProprietarySender(context) {
 					console.log(
 						`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
 					);
+					reportCommandSent(context, {
+						nodeId,
+						ccId: 0x91,
+						commandClass: "Manufacturer Proprietary",
+						manufacturerId,
+						payloadHex,
+						frameNumber,
+						success: false,
+						error: error.message,
+						duration,
+						source: "manufacturer_proprietary",
+					});
 					return {
 						frameNumber,
 						error: error.message,

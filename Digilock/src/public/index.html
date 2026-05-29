@@ -760,6 +760,184 @@
         font-size: var(--font-size-sm);
       }
 
+      /* Command Monitor Styles */
+      .cmd-test-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-md);
+        align-items: flex-end;
+        margin-bottom: var(--spacing-lg);
+      }
+
+      .cmd-test-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-lg);
+      }
+
+      .cmd-test-stat {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        text-align: center;
+      }
+
+      .cmd-test-stat-value {
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-bold);
+        color: var(--text-primary);
+      }
+
+      .cmd-test-stat-label {
+        font-size: var(--font-size-xs);
+        color: var(--text-secondary);
+        margin-top: var(--spacing-xs);
+      }
+
+      .cmd-test-stat.success .cmd-test-stat-value {
+        color: var(--status-active);
+      }
+
+      .cmd-test-stat.failed .cmd-test-stat-value {
+        color: var(--status-inactive);
+      }
+
+      .cmd-test-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        padding: var(--spacing-xs) var(--spacing-md);
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        margin-bottom: var(--spacing-lg);
+      }
+
+      .cmd-test-status-badge.recording {
+        background: var(--alert-error-bg);
+        border: 1px solid var(--alert-error-border);
+        color: var(--alert-error-text);
+      }
+
+      .cmd-test-status-badge.idle {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        color: var(--text-secondary);
+      }
+
+      .cmd-test-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .cmd-test-status-badge.recording .cmd-test-status-dot {
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+
+      .cmd-test-log-container {
+        display: flex;
+        flex-direction: column;
+        height: 60vh;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+      }
+
+      .cmd-test-log-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-md);
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-sm);
+      }
+
+      .cmd-test-entry {
+        display: flex;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-primary);
+        background: var(--bg-tertiary);
+        animation: fadeIn 0.2s ease-in;
+      }
+
+      .cmd-test-entry.success {
+        border-left: 3px solid var(--status-active);
+      }
+
+      .cmd-test-entry.failed {
+        border-left: 3px solid var(--status-inactive);
+        background: var(--alert-error-bg);
+      }
+
+      .cmd-test-entry-time {
+        flex-shrink: 0;
+        font-size: var(--font-size-xs);
+        color: var(--text-tertiary);
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        min-width: 80px;
+      }
+
+      .cmd-test-entry-body {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .cmd-test-entry-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+        align-items: center;
+        margin-bottom: var(--spacing-xs);
+      }
+
+      .cmd-test-entry-status {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+      }
+
+      .cmd-test-entry-status.success {
+        background: var(--alert-success-bg);
+        color: var(--alert-success-text);
+      }
+
+      .cmd-test-entry-status.failed {
+        background: var(--alert-error-bg);
+        color: var(--alert-error-text);
+      }
+
+      .cmd-test-entry-details {
+        font-size: var(--font-size-xs);
+        color: var(--text-secondary);
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        word-break: break-all;
+        line-height: 1.5;
+      }
+
+      .cmd-test-entry-error {
+        margin-top: var(--spacing-xs);
+        color: var(--alert-error-text);
+        font-size: var(--font-size-xs);
+      }
+
       /* Responsive */
       @media (max-width: 768px) {
         .form-row {
@@ -800,6 +978,14 @@
         .ws-log-controls {
           width: 100%;
           justify-content: space-between;
+        }
+
+        .cmd-test-stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .cmd-test-log-container {
+          height: 50vh;
         }
       }
     </style>
@@ -846,6 +1032,14 @@
         onclick="showSection('ws-log')"
       >
         <span>WebSocket Log</span>
+      </button>
+      <button
+        class="menu-item"
+        data-section="command-monitor"
+        aria-label="Command Monitor"
+        onclick="showSection('command-monitor')"
+      >
+        <span>Command Monitor</span>
       </button>
     </nav>
 
@@ -1248,6 +1442,107 @@
           </div>
         </div>
       </section>
+
+      <!-- Command Monitor Section -->
+      <section
+        id="section-command-monitor"
+        class="section-container"
+        aria-labelledby="command-monitor-heading"
+      >
+        <div class="header">
+          <h1 id="command-monitor-heading">Lock Command Monitor</h1>
+          <p>
+            Start a test session to monitor all outgoing commands sent to locks
+            in real time, including success and error status.
+          </p>
+        </div>
+
+        <div class="card">
+          <div
+            id="cmdTestStatusBadge"
+            class="cmd-test-status-badge idle"
+            role="status"
+            aria-live="polite"
+          >
+            <span class="cmd-test-status-dot"></span>
+            <span id="cmdTestStatusText">Monitoring stopped</span>
+          </div>
+
+          <div class="cmd-test-controls">
+            <div class="form-group" style="margin-bottom: 0">
+              <label for="cmdTestNodeId">Filter by Node ID (optional)</label>
+              <input
+                type="number"
+                id="cmdTestNodeId"
+                min="1"
+                max="232"
+                placeholder="All nodes"
+                style="width: 150px"
+              />
+            </div>
+            <button
+              class="btn btn-primary"
+              id="cmdTestStartBtn"
+              onclick="startCommandTest()"
+            >
+              Start Monitoring
+            </button>
+            <button
+              class="btn btn-danger"
+              id="cmdTestStopBtn"
+              onclick="stopCommandTest()"
+              disabled
+            >
+              Stop Monitoring
+            </button>
+            <button
+              class="btn btn-secondary"
+              onclick="clearCommandTestLog()"
+            >
+              Clear Log
+            </button>
+            <button
+              class="btn btn-secondary"
+              onclick="toggleCommandTestAutoScroll()"
+              id="cmdTestAutoScrollBtn"
+            >
+              Auto-scroll: ON
+            </button>
+          </div>
+
+          <div class="cmd-test-stats">
+            <div class="cmd-test-stat">
+              <div class="cmd-test-stat-value" id="cmdTestStatTotal">0</div>
+              <div class="cmd-test-stat-label">Total Commands</div>
+            </div>
+            <div class="cmd-test-stat success">
+              <div class="cmd-test-stat-value" id="cmdTestStatSuccess">0</div>
+              <div class="cmd-test-stat-label">Successful</div>
+            </div>
+            <div class="cmd-test-stat failed">
+              <div class="cmd-test-stat-value" id="cmdTestStatFailed">0</div>
+              <div class="cmd-test-stat-label">Failed</div>
+            </div>
+            <div class="cmd-test-stat">
+              <div class="cmd-test-stat-value" id="cmdTestStatDuration">--</div>
+              <div class="cmd-test-stat-label">Session Duration</div>
+            </div>
+          </div>
+
+          <div class="cmd-test-log-container">
+            <div class="ws-log-header">
+              <h3>Live Command Log</h3>
+            </div>
+            <div class="cmd-test-log-messages" id="cmdTestLogMessages">
+              <div class="ws-log-empty">
+                Start monitoring to record outgoing lock commands. Send commands
+                from the Commands tab or other sources while the session is
+                active.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <script>
@@ -1261,6 +1556,16 @@
       let wsLogMessages = [];
       let wsLogAutoScroll = true;
       const MAX_LOG_MESSAGES = 500;
+
+      // Command test monitor
+      let commandTestActive = false;
+      let commandTestStartedAt = null;
+      let commandTestNodeFilter = null;
+      let commandTestEntries = [];
+      let commandTestAutoScroll = true;
+      let commandTestDurationInterval = null;
+      let commandTestStats = { total: 0, success: 0, failed: 0 };
+      const MAX_COMMAND_TEST_ENTRIES = 500;
 
       // Initialize WebSocket connection
       function initWebSocket() {
@@ -1279,6 +1584,7 @@
           loadDriverStatus();
           loadProvisioningEntries();
           loadNodes();
+          syncCommandTestStatus();
         };
 
         ws.onmessage = (event) => {
@@ -1400,6 +1706,20 @@
 
           case "ERROR":
             showAlert("Error: " + message.message, "error");
+            break;
+
+          case "COMMAND_TEST_STARTED":
+            applyCommandTestSession(message.data, true);
+            break;
+
+          case "COMMAND_TEST_STOPPED":
+            applyCommandTestSession(null, false);
+            break;
+
+          case "COMMAND_TEST_EVENT":
+            if (commandTestActive && message.data) {
+              addCommandTestEntry(message.data, message.timestamp);
+            }
             break;
 
           default:
@@ -2404,6 +2724,264 @@
           }
         }
       }
+
+      // Command Test Monitor Functions
+      function applyCommandTestSession(sessionData, active) {
+        commandTestActive = active;
+        commandTestStartedAt = active ? sessionData?.startedAt || new Date().toISOString() : null;
+        commandTestNodeFilter = active ? sessionData?.nodeId ?? null : null;
+
+        const badge = document.getElementById("cmdTestStatusBadge");
+        const statusText = document.getElementById("cmdTestStatusText");
+        const startBtn = document.getElementById("cmdTestStartBtn");
+        const stopBtn = document.getElementById("cmdTestStopBtn");
+        const nodeInput = document.getElementById("cmdTestNodeId");
+
+        if (active) {
+          badge.className = "cmd-test-status-badge recording";
+          const filterLabel =
+            commandTestNodeFilter !== null && commandTestNodeFilter !== undefined
+              ? `node ${commandTestNodeFilter}`
+              : "all nodes";
+          statusText.textContent = `Monitoring active (${filterLabel})`;
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+          nodeInput.disabled = true;
+          startCommandTestDurationTimer();
+        } else {
+          badge.className = "cmd-test-status-badge idle";
+          statusText.textContent = "Monitoring stopped";
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          nodeInput.disabled = false;
+          stopCommandTestDurationTimer();
+          updateCommandTestDurationDisplay();
+        }
+      }
+
+      function startCommandTestDurationTimer() {
+        stopCommandTestDurationTimer();
+        updateCommandTestDurationDisplay();
+        commandTestDurationInterval = setInterval(
+          updateCommandTestDurationDisplay,
+          1000
+        );
+      }
+
+      function stopCommandTestDurationTimer() {
+        if (commandTestDurationInterval) {
+          clearInterval(commandTestDurationInterval);
+          commandTestDurationInterval = null;
+        }
+      }
+
+      function updateCommandTestDurationDisplay() {
+        const el = document.getElementById("cmdTestStatDuration");
+        if (!el) return;
+
+        if (!commandTestActive || !commandTestStartedAt) {
+          el.textContent = "--";
+          return;
+        }
+
+        const elapsedMs = Date.now() - new Date(commandTestStartedAt).getTime();
+        const totalSeconds = Math.floor(elapsedMs / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        el.textContent = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+      }
+
+      function updateCommandTestStats() {
+        document.getElementById("cmdTestStatTotal").textContent =
+          commandTestStats.total;
+        document.getElementById("cmdTestStatSuccess").textContent =
+          commandTestStats.success;
+        document.getElementById("cmdTestStatFailed").textContent =
+          commandTestStats.failed;
+      }
+
+      function formatCommandTestTimestamp(timestamp) {
+        const date = timestamp ? new Date(timestamp) : new Date();
+        return date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          fractionalSecondDigits: 3,
+        });
+      }
+
+      function formatCommandTestDetails(data) {
+        const parts = [];
+        parts.push(`Node ${data.nodeId}`);
+        if (data.commandClass) {
+          parts.push(data.commandClass);
+        } else if (data.ccId !== undefined) {
+          parts.push(`CC 0x${Number(data.ccId).toString(16).padStart(2, "0")}`);
+        }
+        if (data.ccCommand !== undefined) {
+          parts.push(
+            `Cmd 0x${Number(data.ccCommand).toString(16).padStart(2, "0")}`
+          );
+        }
+        if (data.manufacturerId !== undefined) {
+          parts.push(
+            `Mfg 0x${Number(data.manufacturerId).toString(16).padStart(4, "0")}`
+          );
+        }
+        if (data.frameNumber !== undefined) {
+          parts.push(`Frame #${data.frameNumber}`);
+        }
+        if (data.duration !== undefined) {
+          parts.push(`${data.duration}ms`);
+        }
+        if (data.source) {
+          parts.push(`Source: ${data.source}`);
+        }
+        return parts.join(" | ");
+      }
+
+      function renderCommandTestLog() {
+        const container = document.getElementById("cmdTestLogMessages");
+        if (!container) return;
+
+        if (commandTestEntries.length === 0) {
+          container.innerHTML =
+            '<div class="ws-log-empty">No commands recorded yet in this session.</div>';
+          return;
+        }
+
+        container.innerHTML = commandTestEntries
+          .map((entry) => {
+            const success = entry.success !== false;
+            const statusClass = success ? "success" : "failed";
+            const statusLabel = success ? "SUCCESS" : "FAILED";
+            const payloadLine = entry.payloadHex
+              ? `<div class="cmd-test-entry-details">Payload: ${escapeHtml(entry.payloadHex)}</div>`
+              : "";
+            const errorLine = entry.error
+              ? `<div class="cmd-test-entry-error">Error: ${escapeHtml(entry.error)}</div>`
+              : "";
+
+            return `
+              <div class="cmd-test-entry ${statusClass}">
+                <div class="cmd-test-entry-time">${formatCommandTestTimestamp(entry.timestamp)}</div>
+                <div class="cmd-test-entry-body">
+                  <div class="cmd-test-entry-header">
+                    <span class="cmd-test-entry-status ${statusClass}">${statusLabel}</span>
+                    <span style="font-size: var(--font-size-xs); color: var(--text-secondary);">
+                      ${escapeHtml(formatCommandTestDetails(entry))}
+                    </span>
+                  </div>
+                  ${payloadLine}
+                  ${errorLine}
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+
+        if (commandTestAutoScroll) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+
+      function addCommandTestEntry(data, timestamp) {
+        const entry = { ...data, timestamp: timestamp || data.timestamp };
+        commandTestEntries.unshift(entry);
+        if (commandTestEntries.length > MAX_COMMAND_TEST_ENTRIES) {
+          commandTestEntries = commandTestEntries.slice(0, MAX_COMMAND_TEST_ENTRIES);
+        }
+
+        commandTestStats.total += 1;
+        if (entry.success !== false) {
+          commandTestStats.success += 1;
+        } else {
+          commandTestStats.failed += 1;
+        }
+
+        updateCommandTestStats();
+        renderCommandTestLog();
+      }
+
+      function clearCommandTestLog() {
+        commandTestEntries = [];
+        commandTestStats = { total: 0, success: 0, failed: 0 };
+        updateCommandTestStats();
+        renderCommandTestLog();
+      }
+
+      function toggleCommandTestAutoScroll() {
+        commandTestAutoScroll = !commandTestAutoScroll;
+        const btn = document.getElementById("cmdTestAutoScrollBtn");
+        if (btn) {
+          btn.textContent = `Auto-scroll: ${commandTestAutoScroll ? "ON" : "OFF"}`;
+        }
+      }
+
+      async function syncCommandTestStatus() {
+        try {
+          const result = await sendWebSocketMessage("GET_COMMAND_TEST_STATUS");
+          if (result.type === "COMMAND_TEST_STATUS" && result.data?.active) {
+            applyCommandTestSession(result.data, true);
+          }
+        } catch (error) {
+          console.warn("Could not sync command test status:", error.message);
+        }
+      }
+
+      async function startCommandTest() {
+        const nodeInput = document.getElementById("cmdTestNodeId");
+        const rawNodeId = nodeInput.value.trim();
+        const payload = {};
+
+        if (rawNodeId) {
+          const nodeId = parseInt(rawNodeId, 10);
+          if (Number.isNaN(nodeId) || nodeId < 1 || nodeId > 232) {
+            showAlert("Node ID must be between 1 and 232", "error");
+            return;
+          }
+          payload.nodeId = nodeId;
+        }
+
+        const startBtn = document.getElementById("cmdTestStartBtn");
+        startBtn.disabled = true;
+
+        try {
+          const result = await sendWebSocketMessage(
+            "START_COMMAND_TEST",
+            payload
+          );
+          if (result.type === "COMMAND_TEST_STARTED") {
+            clearCommandTestLog();
+            applyCommandTestSession(result.data, true);
+            showAlert("Command monitoring started", "success");
+          }
+        } catch (error) {
+          showAlert("Failed to start monitoring: " + error.message, "error");
+          startBtn.disabled = false;
+        }
+      }
+
+      async function stopCommandTest() {
+        const stopBtn = document.getElementById("cmdTestStopBtn");
+        stopBtn.disabled = true;
+
+        try {
+          const result = await sendWebSocketMessage("STOP_COMMAND_TEST");
+          if (result.type === "COMMAND_TEST_STOPPED") {
+            applyCommandTestSession(null, false);
+            showAlert("Command monitoring stopped", "info");
+          }
+        } catch (error) {
+          showAlert("Failed to stop monitoring: " + error.message, "error");
+          stopBtn.disabled = false;
+        }
+      }
+
+      window.startCommandTest = startCommandTest;
+      window.stopCommandTest = stopCommandTest;
+      window.clearCommandTestLog = clearCommandTestLog;
+      window.toggleCommandTestAutoScroll = toggleCommandTestAutoScroll;
 
       // Command Modal Functions
       function openCommandModal(nodeId, ccId, ccName, isManufacturerProprietary) {

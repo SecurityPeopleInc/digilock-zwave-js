@@ -21,6 +21,11 @@ export class ZWaveControllerWebsocket extends Plugin {
 		this.securityKeys = null;
 		this.securityKeysLongRange = null;
 		this.eventHandlersSetup = false;
+		this.commandTestSession = {
+			active: false,
+			nodeId: null,
+			startedAt: null,
+		};
 	}
 
 	/**
@@ -201,6 +206,35 @@ export class ZWaveControllerWebsocket extends Plugin {
 				timestamp: new Date().toISOString(),
 			});
 		});
+
+		this.zwaveClient.on("commandSent", (commandData) => {
+			this._broadcastCommandTestEvent(commandData);
+		});
+	}
+
+	/**
+	 * Broadcast a command test event when a monitoring session is active.
+	 * @private
+	 */
+	_broadcastCommandTestEvent(commandData) {
+		if (!this.commandTestSession.active) {
+			return;
+		}
+
+		const filterNodeId = this.commandTestSession.nodeId;
+		if (
+			filterNodeId !== null &&
+			filterNodeId !== undefined &&
+			commandData.nodeId !== filterNodeId
+		) {
+			return;
+		}
+
+		this.broadcast({
+			type: "COMMAND_TEST_EVENT",
+			data: commandData,
+			timestamp: new Date().toISOString(),
+		});
 	}
 
 	/**
@@ -341,6 +375,18 @@ export class ZWaveControllerWebsocket extends Plugin {
 						data,
 						requestId
 					);
+					break;
+
+				case "START_COMMAND_TEST":
+					await this.handleStartCommandTest(client, data, requestId);
+					break;
+
+				case "STOP_COMMAND_TEST":
+					await this.handleStopCommandTest(client, requestId);
+					break;
+
+				case "GET_COMMAND_TEST_STATUS":
+					await this.handleGetCommandTestStatus(client, requestId);
 					break;
 
 				case "PING":
@@ -1171,6 +1217,22 @@ export class ZWaveControllerWebsocket extends Plugin {
 						duration,
 						response: result ? "Received" : "No response",
 					});
+
+					this.zwaveClient.reportCommandSent({
+						nodeId: numericNodeId,
+						ccId: numericCCId,
+						ccCommand: numericCCCommand,
+						commandClass: `CC 0x${numericCCId
+							.toString(16)
+							.padStart(2, "0")}`,
+						payloadHex: payloadBuffer
+							? payloadBuffer.toString("hex")
+							: "",
+						frameNumber: i + 1,
+						success: true,
+						duration,
+						source: "generic",
+					});
 				} catch (error) {
 					const duration = Date.now() - startTime;
 					results.push({
@@ -1178,6 +1240,23 @@ export class ZWaveControllerWebsocket extends Plugin {
 						result: "Error",
 						error: error.message,
 						duration,
+					});
+
+					this.zwaveClient.reportCommandSent({
+						nodeId: numericNodeId,
+						ccId: numericCCId,
+						ccCommand: numericCCCommand,
+						commandClass: `CC 0x${numericCCId
+							.toString(16)
+							.padStart(2, "0")}`,
+						payloadHex: payloadBuffer
+							? payloadBuffer.toString("hex")
+							: "",
+						frameNumber: i + 1,
+						success: false,
+						error: error.message,
+						duration,
+						source: "generic",
 					});
 				}
 			}
@@ -1199,6 +1278,81 @@ export class ZWaveControllerWebsocket extends Plugin {
 				message: error.message || "Failed to send generic command",
 			});
 		}
+	}
+
+	async handleStartCommandTest(client, data, requestId) {
+		try {
+			const rawNodeId = data.nodeId;
+			let filterNodeId = null;
+
+			if (
+				rawNodeId !== undefined &&
+				rawNodeId !== null &&
+				rawNodeId !== ""
+			) {
+				filterNodeId = Number.isInteger(rawNodeId)
+					? rawNodeId
+					: Number(rawNodeId);
+				if (Number.isNaN(filterNodeId)) {
+					this.sendResponse(client, requestId, {
+						type: "ERROR",
+						message: "Invalid nodeId format",
+					});
+					return;
+				}
+			}
+
+			this.commandTestSession = {
+				active: true,
+				nodeId: filterNodeId,
+				startedAt: new Date().toISOString(),
+			};
+
+			const response = {
+				type: "COMMAND_TEST_STARTED",
+				data: { ...this.commandTestSession },
+				timestamp: new Date().toISOString(),
+			};
+
+			this.sendResponse(client, requestId, response);
+			this.broadcast(response);
+		} catch (error) {
+			this.sendResponse(client, requestId, {
+				type: "ERROR",
+				message: error.message || "Failed to start command test",
+			});
+		}
+	}
+
+	async handleStopCommandTest(client, requestId) {
+		try {
+			this.commandTestSession = {
+				active: false,
+				nodeId: null,
+				startedAt: null,
+			};
+
+			const response = {
+				type: "COMMAND_TEST_STOPPED",
+				timestamp: new Date().toISOString(),
+			};
+
+			this.sendResponse(client, requestId, response);
+			this.broadcast(response);
+		} catch (error) {
+			this.sendResponse(client, requestId, {
+				type: "ERROR",
+				message: error.message || "Failed to stop command test",
+			});
+		}
+	}
+
+	async handleGetCommandTestStatus(client, requestId) {
+		this.sendResponse(client, requestId, {
+			type: "COMMAND_TEST_STATUS",
+			data: { ...this.commandTestSession },
+			timestamp: new Date().toISOString(),
+		});
 	}
 
 	/**

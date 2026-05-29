@@ -1003,6 +1003,19 @@ export class ZWaveProvisioningClient extends EventEmitter {
 			waitForDriverReady: () => this.waitForDriverReady(),
 			forceManufacturerProprietarySupport: (node) =>
 				this._forceManufacturerProprietarySupport(node),
+			onCommandSent: (data) => this.reportCommandSent(data),
+		});
+	}
+
+	/**
+	 * Emits a commandSent event for outgoing lock commands (used by command test monitoring).
+	 * @param {Object} data
+	 */
+	reportCommandSent(data) {
+		this.emit("commandSent", {
+			direction: "outgoing",
+			...data,
+			timestamp: new Date().toISOString(),
 		});
 	}
 
@@ -1139,14 +1152,40 @@ export class ZWaveProvisioningClient extends EventEmitter {
 									Math.min(32, receivedPayload.length),
 								);
 							}
-							await mpAPI.sendData(0x01fb, responsePayload);
-							console.log(
-								`[MP Handler] ✅ Response sent to node ${
-									node.id
-								} with payload: ${responsePayload.toString(
-									"hex",
-								)}`,
-							);
+							const startTime = Date.now();
+							try {
+								await mpAPI.sendData(0x01fb, responsePayload);
+								this.reportCommandSent({
+									nodeId: node.id,
+									ccId: 0x91,
+									commandClass: "Manufacturer Proprietary",
+									manufacturerId: 0x01fb,
+									payloadHex: responsePayload.toString("hex"),
+									success: true,
+									duration: Date.now() - startTime,
+									source: "auto_response",
+								});
+								console.log(
+									`[MP Handler] ✅ Response sent to node ${
+										node.id
+									} with payload: ${responsePayload.toString(
+										"hex",
+									)}`,
+								);
+							} catch (sendError) {
+								this.reportCommandSent({
+									nodeId: node.id,
+									ccId: 0x91,
+									commandClass: "Manufacturer Proprietary",
+									manufacturerId: 0x01fb,
+									payloadHex: responsePayload.toString("hex"),
+									success: false,
+									error: sendError.message,
+									duration: Date.now() - startTime,
+									source: "auto_response",
+								});
+								throw sendError;
+							}
 						}
 					} catch (error) {
 						console.error(
