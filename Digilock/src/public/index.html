@@ -1546,9 +1546,9 @@
         <div class="header">
           <h1 id="command-monitor-heading">Lock Command Monitor</h1>
           <p>
-            Monitor periodic lock traffic: set the device interval and node ID,
-            then watch inter-arrival timing on a live chart. Events are logged to
-            a shared JSONL file on the server (timestamp + interval metrics).
+            Monitor periodic lock traffic: set the expected interval and optionally
+            filter by node (leave blank for all nodes). Inter-arrival timing is
+            shown on a live chart and logged to a shared JSONL file on the server.
           </p>
         </div>
 
@@ -1565,14 +1565,13 @@
 
           <div class="cmd-test-controls">
             <div class="form-group" style="margin-bottom: 0">
-              <label for="cmdTestNodeId">Node ID</label>
+              <label for="cmdTestNodeId">Node ID (optional)</label>
               <input
                 type="number"
                 id="cmdTestNodeId"
                 min="1"
                 max="232"
-                placeholder="e.g. 5"
-                required
+                placeholder="All nodes"
                 style="width: 120px"
               />
             </div>
@@ -2972,7 +2971,12 @@
                     }
                     const late = context.raw?.late;
                     const lateBy = context.raw?.lateByMs;
-                    const lines = [`Interval: ${y} ms`];
+                    const nodeId = context.raw?.nodeId;
+                    const lines = [];
+                    if (nodeId != null) {
+                      lines.push(`Node ${nodeId}`);
+                    }
+                    lines.push(`Interval: ${y} ms`);
                     if (late) {
                       lines.push(`Late by ${lateBy} ms`);
                     }
@@ -3068,6 +3072,7 @@
           y: entry.intervalMs,
           late: isLate,
           lateByMs: entry.lateByMs || 0,
+          nodeId: entry.nodeId ?? null,
         });
 
         const pointIndex = chart.data.datasets[0].data.length - 1;
@@ -3140,7 +3145,12 @@
                   commandTestExpectedIntervalMs % 1000 === 0 ? 0 : 1
                 )
               : "?";
-          statusText.textContent = `Monitoring node ${commandTestNodeFilter} every ~${intervalSec}s (±${commandTestTolerancePercent}%)`;
+          const nodeLabel =
+            commandTestNodeFilter !== null &&
+            commandTestNodeFilter !== undefined
+              ? `node ${commandTestNodeFilter}`
+              : "all nodes";
+          statusText.textContent = `Monitoring ${nodeLabel} every ~${intervalSec}s (±${commandTestTolerancePercent}%)`;
           startBtn.disabled = true;
           stopBtn.disabled = false;
           nodeInput.disabled = true;
@@ -3425,15 +3435,15 @@
         const rawInterval = intervalInput.value.trim();
         const rawTolerance = toleranceInput.value.trim();
 
-        if (!rawNodeId) {
-          showAlert("Node ID is required", "error");
-          return;
-        }
+        const payload = {};
 
-        const nodeId = parseInt(rawNodeId, 10);
-        if (Number.isNaN(nodeId) || nodeId < 1 || nodeId > 232) {
-          showAlert("Node ID must be between 1 and 232", "error");
-          return;
+        if (rawNodeId) {
+          const nodeId = parseInt(rawNodeId, 10);
+          if (Number.isNaN(nodeId) || nodeId < 1 || nodeId > 232) {
+            showAlert("Node ID must be between 1 and 232", "error");
+            return;
+          }
+          payload.nodeId = nodeId;
         }
 
         if (!rawInterval) {
@@ -3459,11 +3469,8 @@
           return;
         }
 
-        const payload = {
-          nodeId,
-          expectedIntervalSec: intervalSec,
-          tolerancePercent,
-        };
+        payload.expectedIntervalSec = intervalSec;
+        payload.tolerancePercent = tolerancePercent;
 
         const startBtn = document.getElementById("cmdTestStartBtn");
         startBtn.disabled = true;

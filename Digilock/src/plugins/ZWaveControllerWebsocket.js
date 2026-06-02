@@ -29,7 +29,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 			startedAt: null,
 			expectedIntervalMs: null,
 			tolerancePercent: 10,
-			lastIncomingAt: null,
+			lastIncomingAtByNode: {},
 			logFileName: null,
 			logFilePath: null,
 		};
@@ -282,8 +282,13 @@ export class ZWaveControllerWebsocket extends Plugin {
 		enriched.expectedIntervalMs = session.expectedIntervalMs;
 		enriched.tolerancePercent = session.tolerancePercent;
 
-		if (session.lastIncomingAt != null) {
-			const intervalMs = receivedAt - session.lastIncomingAt;
+		const nodeKey =
+			commandData.nodeId != null ? String(commandData.nodeId) : "_unknown";
+		const lastIncomingAt =
+			session.lastIncomingAtByNode?.[nodeKey] ?? null;
+
+		if (lastIncomingAt != null) {
+			const intervalMs = receivedAt - lastIncomingAt;
 			const thresholdMs =
 				session.expectedIntervalMs *
 				(1 + session.tolerancePercent / 100);
@@ -298,7 +303,10 @@ export class ZWaveControllerWebsocket extends Plugin {
 			enriched.lateByMs = 0;
 		}
 
-		session.lastIncomingAt = receivedAt;
+		if (!session.lastIncomingAtByNode) {
+			session.lastIncomingAtByNode = {};
+		}
+		session.lastIncomingAtByNode[nodeKey] = receivedAt;
 		return enriched;
 	}
 
@@ -363,7 +371,9 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 		const startedAt = session.startedAt || new Date().toISOString();
 		const safeTime = this._sanitizeLogFileSegment(startedAt);
-		const fileName = `command-monitor-node${session.nodeId}-${safeTime}.jsonl`;
+		const nodeSegment =
+			session.nodeId != null ? `node${session.nodeId}` : "all-nodes";
+		const fileName = `command-monitor-${nodeSegment}-${safeTime}.jsonl`;
 		const logFilePath = join(logDir, fileName);
 
 		const header = {
@@ -1451,31 +1461,27 @@ export class ZWaveControllerWebsocket extends Plugin {
 	async handleStartCommandTest(client, data, requestId) {
 		try {
 			const rawNodeId = data.nodeId;
-			if (
-				rawNodeId === undefined ||
-				rawNodeId === null ||
-				rawNodeId === ""
-			) {
-				this.sendResponse(client, requestId, {
-					type: "ERROR",
-					message: "nodeId is required for command monitoring",
-				});
-				return;
-			}
+			let filterNodeId = null;
 
-			const filterNodeId = Number.isInteger(rawNodeId)
-				? rawNodeId
-				: Number(rawNodeId);
 			if (
-				Number.isNaN(filterNodeId) ||
-				filterNodeId < 1 ||
-				filterNodeId > 232
+				rawNodeId !== undefined &&
+				rawNodeId !== null &&
+				rawNodeId !== ""
 			) {
-				this.sendResponse(client, requestId, {
-					type: "ERROR",
-					message: "nodeId must be an integer between 1 and 232",
-				});
-				return;
+				filterNodeId = Number.isInteger(rawNodeId)
+					? rawNodeId
+					: Number(rawNodeId);
+				if (
+					Number.isNaN(filterNodeId) ||
+					filterNodeId < 1 ||
+					filterNodeId > 232
+				) {
+					this.sendResponse(client, requestId, {
+						type: "ERROR",
+						message: "nodeId must be an integer between 1 and 232",
+					});
+					return;
+				}
 			}
 
 			let expectedIntervalMs = null;
@@ -1521,7 +1527,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 				startedAt,
 				expectedIntervalMs: Math.round(expectedIntervalMs),
 				tolerancePercent,
-				lastIncomingAt: null,
+				lastIncomingAtByNode: {},
 				logFileName: null,
 				logFilePath: null,
 			};
@@ -1553,7 +1559,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 				startedAt: null,
 				expectedIntervalMs: null,
 				tolerancePercent: 10,
-				lastIncomingAt: null,
+				lastIncomingAtByNode: {},
 				logFileName: null,
 				logFilePath: null,
 			};
@@ -1589,7 +1595,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 				startedAt: null,
 				expectedIntervalMs: null,
 				tolerancePercent: 10,
-				lastIncomingAt: null,
+				lastIncomingAtByNode: {},
 				logFileName: null,
 				logFilePath: null,
 			};
