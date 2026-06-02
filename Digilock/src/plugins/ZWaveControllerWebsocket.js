@@ -5,6 +5,9 @@ import { WebSocketServer } from "ws";
 import { ZWaveProvisioningClient } from "../zwave-client.js";
 import { CommandClasses } from "../../../packages/core/src/definitions/index.js";
 
+const MAX_COMMAND_TEST_EVENTS = 500;
+const MAX_COMMAND_TEST_CHART_POINTS = 300;
+
 /**
  * WebSocket Server Plugin for ZWaveController
  * Manages WebSocket server, client connections, and message routing
@@ -23,17 +26,115 @@ export class ZWaveControllerWebsocket extends Plugin {
 		this.securityKeys = null;
 		this.securityKeysLongRange = null;
 		this.eventHandlersSetup = false;
-		this.commandTestSession = {
+		this.commandTestSession = this._createEmptyCommandTestSession();
+		this.commandMonitorLogDir = null;
+	}
+
+	/**
+	 * @private
+	 */
+	_createEmptyCommandTestSession() {
+		return {
 			active: false,
 			nodeId: null,
 			startedAt: null,
 			expectedIntervalMs: null,
-			tolerancePercent: 10,
 			lastIncomingAtByNode: {},
 			logFileName: null,
 			logFilePath: null,
+			events: [],
+			chartPoints: [],
+			stats: {
+				total: 0,
+				incoming: 0,
+				outgoing: 0,
+				failed: 0,
+				intervalSum: 0,
+				intervalCount: 0,
+			},
 		};
-		this.commandMonitorLogDir = null;
+	}
+
+	/**
+	 * @private
+	 */
+	_recordCommandTestEvent(enriched, eventTimestamp) {
+		const session = this.commandTestSession;
+		const entry = { ...enriched, timestamp: eventTimestamp };
+
+		session.events.unshift(entry);
+		if (session.events.length > MAX_COMMAND_TEST_EVENTS) {
+			session.events.length = MAX_COMMAND_TEST_EVENTS;
+		}
+
+		session.stats.total += 1;
+		if (entry.direction === "incoming") {
+			session.stats.incoming += 1;
+		} else {
+			session.stats.outgoing += 1;
+		}
+		if (entry.success === false) {
+			session.stats.failed += 1;
+		}
+
+		if (
+			entry.intervalMs != null &&
+			!Number.isNaN(entry.intervalMs)
+		) {
+			session.chartPoints.push({
+				timestamp: eventTimestamp,
+				intervalMs: entry.intervalMs,
+				nodeId: entry.nodeId ?? null,
+			});
+			if (session.chartPoints.length > MAX_COMMAND_TEST_CHART_POINTS) {
+				session.chartPoints.splice(
+					0,
+					session.chartPoints.length - MAX_COMMAND_TEST_CHART_POINTS,
+				);
+			}
+			session.stats.intervalSum += entry.intervalMs;
+			session.stats.intervalCount += 1;
+		}
+	}
+
+	/**
+	 * @private
+	 */
+	_getPublicCommandTestSession() {
+		const session = this.commandTestSession;
+		if (!session.active) {
+			return { active: false };
+		}
+
+		return {
+			active: true,
+			nodeId: session.nodeId,
+			startedAt: session.startedAt,
+			expectedIntervalMs: session.expectedIntervalMs,
+			logFileName: session.logFileName,
+			logUrl: session.logFileName
+				? `/command-monitor-logs/${session.logFileName}`
+				: null,
+			events: session.events,
+			chartPoints: session.chartPoints,
+			stats: { ...session.stats },
+		};
+	}
+
+	/**
+	 * Push current session state to a single client (new tab / device).
+	 * @private
+	 */
+	_sendCommandTestSnapshot(client) {
+		if (!this.commandTestSession.active) {
+			return;
+		}
+
+		this.sendToClient(client, {
+			type: "COMMAND_TEST_SNAPSHOT",
+			data: this._getPublicCommandTestSession(),
+			timestamp: new Date().toISOString(),
+		});
 	}
 
 	/**
@@ -244,6 +345,8 @@ export class ZWaveControllerWebsocket extends Plugin {
 		const eventTimestamp =
 			enriched.timestamp || new Date().toISOString();
 
+		this._recordCommandTestEvent(enriched, eventTimestamp);
+
 		this._appendCommandTestLogRecord(enriched, eventTimestamp).catch(
 			(error) => {
 				console.warn(
@@ -256,6 +359,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 		this.broadcast({
 			type: "COMMAND_TEST_EVENT",
 			data: enriched,
+			stats: { ...this.commandTestSession.stats },
 			timestamp: eventTimestamp,
 		});
 	}
@@ -280,7 +384,6 @@ export class ZWaveControllerWebsocket extends Plugin {
 			: Date.now();
 
 		enriched.expectedIntervalMs = session.expectedIntervalMs;
-		enriched.tolerancePercent = session.tolerancePercent;
 
 		const nodeKey =
 			commandData.nodeId != null ? String(commandData.nodeId) : "_unknown";
@@ -288,19 +391,9 @@ export class ZWaveControllerWebsocket extends Plugin {
 			session.lastIncomingAtByNode?.[nodeKey] ?? null;
 
 		if (lastIncomingAt != null) {
-			const intervalMs = receivedAt - lastIncomingAt;
-			const thresholdMs =
-				session.expectedIntervalMs *
-				(1 + session.tolerancePercent / 100);
-			enriched.intervalMs = intervalMs;
-			enriched.late = intervalMs > thresholdMs;
-			enriched.lateByMs = enriched.late
-				? Math.round(intervalMs - session.expectedIntervalMs)
-				: 0;
+			enriched.intervalMs = receivedAt - lastIncomingAt;
 		} else {
 			enriched.intervalMs = null;
-			enriched.late = false;
-			enriched.lateByMs = 0;
 		}
 
 		if (!session.lastIncomingAtByNode) {
@@ -323,9 +416,6 @@ export class ZWaveControllerWebsocket extends Plugin {
 			intervalMs:
 				enriched.intervalMs === undefined ? null : enriched.intervalMs,
 			expectedIntervalMs: enriched.expectedIntervalMs ?? null,
-			tolerancePercent: enriched.tolerancePercent ?? null,
-			late: enriched.late === true,
-			lateByMs: enriched.lateByMs ?? 0,
 			commandClass: enriched.commandClass ?? null,
 			ccId: enriched.ccId ?? null,
 			ccCommand: enriched.ccCommand ?? null,
@@ -381,8 +471,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 			timestamp: startedAt,
 			nodeId: session.nodeId,
 			expectedIntervalMs: session.expectedIntervalMs,
-			tolerancePercent: session.tolerancePercent,
-			logFormatVersion: 1,
+			logFormatVersion: 2,
 		};
 
 		await appendFile(
@@ -433,6 +522,8 @@ export class ZWaveControllerWebsocket extends Plugin {
 					timestamp: new Date().toISOString(),
 				});
 			}
+
+			this._sendCommandTestSnapshot(ws);
 
 			ws.on("message", (message) => {
 				this.handleMessage(ws, message);
@@ -1460,6 +1551,19 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 	async handleStartCommandTest(client, data, requestId) {
 		try {
+			if (this.commandTestSession.active) {
+				const response = {
+					type: "COMMAND_TEST_STARTED",
+					data: {
+						...this._getPublicCommandTestSession(),
+						alreadyActive: true,
+					},
+					timestamp: new Date().toISOString(),
+				};
+				this.sendResponse(client, requestId, response);
+				return;
+			}
+
 			const rawNodeId = data.nodeId;
 			let filterNodeId = null;
 
@@ -1503,46 +1607,18 @@ export class ZWaveControllerWebsocket extends Plugin {
 				return;
 			}
 
-			let tolerancePercent = 10;
-			if (data.tolerancePercent !== undefined) {
-				tolerancePercent = Number(data.tolerancePercent);
-				if (
-					Number.isNaN(tolerancePercent) ||
-					tolerancePercent < 0 ||
-					tolerancePercent > 100
-				) {
-					this.sendResponse(client, requestId, {
-						type: "ERROR",
-						message:
-							"tolerancePercent must be a number between 0 and 100",
-					});
-					return;
-				}
-			}
-
 			const startedAt = new Date().toISOString();
 			this.commandTestSession = {
+				...this._createEmptyCommandTestSession(),
 				active: true,
 				nodeId: filterNodeId,
 				startedAt,
 				expectedIntervalMs: Math.round(expectedIntervalMs),
-				tolerancePercent,
-				lastIncomingAtByNode: {},
-				logFileName: null,
-				logFilePath: null,
 			};
 
 			await this._openCommandTestLogFile(this.commandTestSession);
 
-			const sessionPayload = {
-				active: this.commandTestSession.active,
-				nodeId: this.commandTestSession.nodeId,
-				startedAt: this.commandTestSession.startedAt,
-				expectedIntervalMs: this.commandTestSession.expectedIntervalMs,
-				tolerancePercent: this.commandTestSession.tolerancePercent,
-				logFileName: this.commandTestSession.logFileName,
-				logUrl: `/command-monitor-logs/${this.commandTestSession.logFileName}`,
-			};
+			const sessionPayload = this._getPublicCommandTestSession();
 
 			const response = {
 				type: "COMMAND_TEST_STARTED",
@@ -1553,16 +1629,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 			this.sendResponse(client, requestId, response);
 			this.broadcast(response);
 		} catch (error) {
-			this.commandTestSession = {
-				active: false,
-				nodeId: null,
-				startedAt: null,
-				expectedIntervalMs: null,
-				tolerancePercent: 10,
-				lastIncomingAtByNode: {},
-				logFileName: null,
-				logFilePath: null,
-			};
+			this.commandTestSession = this._createEmptyCommandTestSession();
 			this.sendResponse(client, requestId, {
 				type: "ERROR",
 				message: error.message || "Failed to start command test",
@@ -1573,7 +1640,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 	async handleStopCommandTest(client, requestId) {
 		try {
 			const stoppedAt = new Date().toISOString();
-			const previousSession = { ...this.commandTestSession };
+			const previousSession = this.commandTestSession;
 
 			if (previousSession.active && previousSession.logFilePath) {
 				await this._closeCommandTestLogFile(
@@ -1589,16 +1656,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 					}
 				: null;
 
-			this.commandTestSession = {
-				active: false,
-				nodeId: null,
-				startedAt: null,
-				expectedIntervalMs: null,
-				tolerancePercent: 10,
-				lastIncomingAtByNode: {},
-				logFileName: null,
-				logFilePath: null,
-			};
+			this.commandTestSession = this._createEmptyCommandTestSession();
 
 			const response = {
 				type: "COMMAND_TEST_STOPPED",
@@ -1614,25 +1672,6 @@ export class ZWaveControllerWebsocket extends Plugin {
 				message: error.message || "Failed to stop command test",
 			});
 		}
-	}
-
-	_getPublicCommandTestSession() {
-		const session = this.commandTestSession;
-		if (!session.active) {
-			return { active: false };
-		}
-
-		return {
-			active: true,
-			nodeId: session.nodeId,
-			startedAt: session.startedAt,
-			expectedIntervalMs: session.expectedIntervalMs,
-			tolerancePercent: session.tolerancePercent,
-			logFileName: session.logFileName,
-			logUrl: session.logFileName
-				? `/command-monitor-logs/${session.logFileName}`
-				: null,
-		};
 	}
 
 	async handleGetCommandTestStatus(client, requestId) {
