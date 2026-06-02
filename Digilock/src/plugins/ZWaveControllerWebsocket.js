@@ -336,7 +336,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 		if (
 			filterNodeId !== null &&
 			filterNodeId !== undefined &&
-			commandData.nodeId !== filterNodeId
+			String(commandData.nodeId) !== String(filterNodeId)
 		) {
 			return;
 		}
@@ -500,6 +500,33 @@ export class ZWaveControllerWebsocket extends Plugin {
 		};
 
 		await appendFile(logPath, `${JSON.stringify(footer)}\n`, "utf8");
+	}
+
+	/**
+	 * @private
+	 */
+	_parseOptionalPositiveNodeId(rawNodeId) {
+		if (rawNodeId === undefined || rawNodeId === null) {
+			return { ok: true, value: null };
+		}
+
+		const str = String(rawNodeId).trim();
+		if (str === "") {
+			return { ok: true, value: null };
+		}
+
+		if (!/^[1-9]\d*$/.test(str)) {
+			return {
+				ok: false,
+				message: "nodeId must be a positive integer",
+			};
+		}
+
+		const numeric = Number(str);
+		return {
+			ok: true,
+			value: Number.isSafeInteger(numeric) ? numeric : str,
+		};
 	}
 
 	/**
@@ -1565,28 +1592,15 @@ export class ZWaveControllerWebsocket extends Plugin {
 			}
 
 			const rawNodeId = data.nodeId;
-			let filterNodeId = null;
-
-			if (
-				rawNodeId !== undefined &&
-				rawNodeId !== null &&
-				rawNodeId !== ""
-			) {
-				filterNodeId = Number.isInteger(rawNodeId)
-					? rawNodeId
-					: Number(rawNodeId);
-				if (
-					Number.isNaN(filterNodeId) ||
-					filterNodeId < 1 ||
-					filterNodeId > 232
-				) {
-					this.sendResponse(client, requestId, {
-						type: "ERROR",
-						message: "nodeId must be an integer between 1 and 232",
-					});
-					return;
-				}
+			const parsedNodeId = this._parseOptionalPositiveNodeId(rawNodeId);
+			if (!parsedNodeId.ok) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: parsedNodeId.message,
+				});
+				return;
 			}
+			const filterNodeId = parsedNodeId.value;
 
 			let expectedIntervalMs = null;
 			if (data.expectedIntervalMs !== undefined) {

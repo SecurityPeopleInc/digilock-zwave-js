@@ -98,12 +98,39 @@
         border-bottom: 1px solid var(--border-primary);
         padding: var(--spacing-md) var(--spacing-xl);
         display: flex;
-        gap: var(--spacing-lg);
         align-items: center;
+        justify-content: space-between;
+        gap: var(--spacing-lg);
         position: sticky;
         top: 0;
         z-index: 100;
         box-shadow: var(--shadow-sm);
+      }
+
+      .top-menu-brand {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        text-decoration: none;
+        margin-right: var(--spacing-md);
+      }
+
+      .top-menu-brand img {
+        display: block;
+        height: 32px;
+        width: auto;
+        max-width: min(200px, 40vw);
+        object-fit: contain;
+        object-position: left center;
+      }
+
+      .top-menu-nav {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: var(--spacing-sm) var(--spacing-lg);
+        margin-left: auto;
       }
 
       .menu-item {
@@ -806,6 +833,7 @@
         gap: var(--spacing-md);
         font-size: var(--font-size-xs);
         color: var(--text-secondary);
+        justify-content: flex-end;
       }
 
       .cmd-test-chart-legend-item {
@@ -1042,6 +1070,15 @@
           padding: var(--spacing-sm) var(--spacing-md);
         }
 
+        .top-menu-brand img {
+          height: 26px;
+        }
+
+        .top-menu-nav {
+          width: 100%;
+          justify-content: flex-start;
+        }
+
         .container {
           padding: var(--spacing-md);
         }
@@ -1082,54 +1119,64 @@
   <body>
     <!-- Top Menu Bar -->
     <nav class="top-menu" role="navigation" aria-label="Main navigation">
-      <button
-        class="menu-item active"
-        data-section="overview"
-        aria-label="Overview"
-        onclick="showSection('overview')"
-      >
-        <span>Overview</span>
-      </button>
-      <button
-        class="menu-item"
-        data-section="provisioning"
-        aria-label="Provisioning"
-        onclick="showSection('provisioning')"
-      >
-        <span>Provisioning</span>
-      </button>
-      <button
-        class="menu-item"
-        data-section="nodes"
-        aria-label="Nodes"
-        onclick="showSection('nodes')"
-      >
-        <span>Nodes</span>
-      </button>
-      <button
-        class="menu-item"
-        data-section="commands"
-        aria-label="Commands"
-        onclick="showSection('commands')"
-      >
-        <span>Commands</span>
-      </button>
-      <button
-        class="menu-item"
-        data-section="ws-log"
-        aria-label="WebSocket Log"
-        onclick="showSection('ws-log')"
-      >
-        <span>WebSocket Log</span>
-      </button>
-      <button
-        class="menu-item"
-        data-section="command-monitor"
-        aria-label="Command Monitor"
-        onclick="showSection('command-monitor')"
-      >
-        <span>Command Monitor</span>
-      </button>
+      <a class="top-menu-brand" href="/" aria-label="Digilock home">
+        <img
+          src="/media/digilock_gray%201.png"
+          alt="Digilock"
+          width="160"
+          height="32"
+        />
+      </a>
+      <div class="top-menu-nav">
+        <button
+          class="menu-item active"
+          data-section="overview"
+          aria-label="Overview"
+          onclick="showSection('overview')"
+        >
+          <span>Overview</span>
+        </button>
+        <button
+          class="menu-item"
+          data-section="provisioning"
+          aria-label="Provisioning"
+          onclick="showSection('provisioning')"
+        >
+          <span>Provisioning</span>
+        </button>
+        <button
+          class="menu-item"
+          data-section="nodes"
+          aria-label="Nodes"
+          onclick="showSection('nodes')"
+        >
+          <span>Nodes</span>
+        </button>
+        <button
+          class="menu-item"
+          data-section="commands"
+          aria-label="Commands"
+          onclick="showSection('commands')"
+        >
+          <span>Commands</span>
+        </button>
+        <button
+          class="menu-item"
+          data-section="ws-log"
+          aria-label="WebSocket Log"
+          onclick="showSection('ws-log')"
+        >
+          <span>WebSocket Log</span>
+        </button>
+        <button
+          class="menu-item"
+          data-section="command-monitor"
+          aria-label="Command Monitor"
+          onclick="showSection('command-monitor')"
+        >
+          <span>Command Monitor</span>
+        </button>
+      </div>
     </nav>
 
     <div class="container">
@@ -1562,12 +1609,12 @@
             <div class="form-group" style="margin-bottom: 0">
               <label for="cmdTestNodeId">Node ID (optional)</label>
               <input
-                type="number"
+                type="text"
                 id="cmdTestNodeId"
-                min="1"
-                max="232"
+                inputmode="numeric"
+                pattern="[1-9][0-9]*"
                 placeholder="All nodes"
-                style="width: 120px"
+                style="width: 140px"
               />
             </div>
             <div class="form-group" style="margin-bottom: 0">
@@ -1653,24 +1700,12 @@
           <div class="cmd-test-chart-card">
             <div class="cmd-test-chart-header">
               <h3>Interval timing (real time)</h3>
-              <div class="cmd-test-chart-legend">
-                <span class="cmd-test-chart-legend-item">
-                  <span
-                    class="cmd-test-chart-legend-swatch"
-                    style="background: var(--status-connected)"
-                  ></span>
-                  Measured interval
-                </span>
-                <span class="cmd-test-chart-legend-item">
-                  <span
-                    class="cmd-test-chart-legend-swatch"
-                    style="
-                      background: transparent;
-                      border: 2px dashed rgba(202, 138, 4, 0.85);
-                    "
-                  ></span>
-                  Expected interval
-                </span>
+              <div
+                id="cmdTestChartLegendHint"
+                class="cmd-test-chart-legend"
+                hidden
+              >
+                Each node uses a distinct line color (see chart legend).
               </div>
             </div>
             <p
@@ -1735,6 +1770,24 @@
         intervalCount: 0,
       };
       let commandTestChart = null;
+      let commandTestNodeColorMap = {};
+      const COMMAND_TEST_NODE_PALETTE = [
+        "#3b82f6",
+        "#22c55e",
+        "#f97316",
+        "#a855f7",
+        "#ec4899",
+        "#14b8a6",
+        "#eab308",
+        "#ef4444",
+        "#06b6d4",
+        "#84cc16",
+        "#f43f5e",
+        "#8b5cf6",
+        "#0ea5e9",
+        "#d946ef",
+        "#10b981",
+      ];
       const MAX_COMMAND_TEST_ENTRIES = 500;
       const MAX_COMMAND_TEST_CHART_POINTS = 300;
 
@@ -2915,6 +2968,187 @@
       }
 
       // Command Test Monitor Functions
+      function commandTestNodeKey(nodeId) {
+        return nodeId != null ? String(nodeId) : "unknown";
+      }
+
+      function commandTestNodeIdsEqual(a, b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return String(a) === String(b);
+      }
+
+      function parseOptionalPositiveNodeId(raw) {
+        if (raw === undefined || raw === null) {
+          return { ok: true, value: null };
+        }
+        const str = String(raw).trim();
+        if (str === "") {
+          return { ok: true, value: null };
+        }
+        if (!/^[1-9]\d*$/.test(str)) {
+          return {
+            ok: false,
+            message: "Node ID must be a positive integer",
+          };
+        }
+        const numeric = Number(str);
+        return {
+          ok: true,
+          value: Number.isSafeInteger(numeric) ? numeric : str,
+        };
+      }
+
+      function hashStringToFraction(str) {
+        let hash = 2166136261;
+        for (let i = 0; i < str.length; i++) {
+          hash ^= str.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        return (hash >>> 0) / 4294967296;
+      }
+
+      function commandTestColorWithAlpha(color, alpha) {
+        if (color.startsWith("hsl(")) {
+          return color.replace("hsl(", "hsla(").replace(")", `, ${alpha})`);
+        }
+        const hex = color.replace("#", "");
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+
+      function getCommandTestNodeColor(nodeId) {
+        const key = commandTestNodeKey(nodeId);
+        if (commandTestNodeColorMap[key]) {
+          return commandTestNodeColorMap[key];
+        }
+
+        const numericId = Number(key);
+        let color;
+        if (
+          Number.isSafeInteger(numericId) &&
+          numericId >= 1 &&
+          numericId <= COMMAND_TEST_NODE_PALETTE.length
+        ) {
+          color = COMMAND_TEST_NODE_PALETTE[numericId - 1];
+        } else {
+          const hue = Math.round(hashStringToFraction(key) * 360);
+          const sat =
+            58 + Math.round(hashStringToFraction(`${key}:s`) * 22);
+          const light =
+            52 + Math.round(hashStringToFraction(`${key}:l`) * 14);
+          color = `hsl(${hue}, ${sat}%, ${light}%)`;
+        }
+
+        commandTestNodeColorMap[key] = color;
+        return color;
+      }
+
+      function getCommandTestExpectedDataset(chart) {
+        return chart.data.datasets.find((dataset) => dataset.expectedLine);
+      }
+
+      function getCommandTestNodeDatasets(chart) {
+        return chart.data.datasets.filter((dataset) => !dataset.expectedLine);
+      }
+
+      function createCommandTestExpectedDataset() {
+        return {
+          expectedLine: true,
+          label: "Expected interval",
+          data: [],
+          borderColor: "rgba(202, 138, 4, 0.85)",
+          backgroundColor: "transparent",
+          borderDash: [6, 4],
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+        };
+      }
+
+      function createCommandTestNodeDataset(nodeId) {
+        const color = getCommandTestNodeColor(nodeId);
+        const label =
+          nodeId != null ? `Node ${nodeId}` : "Unknown node";
+        return {
+          nodeId: nodeId ?? null,
+          label,
+          data: [],
+          borderColor: color,
+          backgroundColor: commandTestColorWithAlpha(color, 0.12),
+          pointBackgroundColor: color,
+          pointBorderColor: "#ffffff",
+          pointRadius: 4,
+          pointHoverRadius: 7,
+          borderWidth: 2,
+          fill: false,
+          tension: 0.35,
+          showLine: true,
+        };
+      }
+
+      function getOrCreateCommandTestNodeDataset(chart, nodeId) {
+        let dataset = getCommandTestNodeDatasets(chart).find((item) =>
+          commandTestNodeIdsEqual(item.nodeId, nodeId)
+        );
+        if (dataset) {
+          return dataset;
+        }
+
+        dataset = createCommandTestNodeDataset(nodeId);
+        const expectedDataset = getCommandTestExpectedDataset(chart);
+        const insertIndex = expectedDataset
+          ? chart.data.datasets.indexOf(expectedDataset)
+          : chart.data.datasets.length;
+        chart.data.datasets.splice(insertIndex, 0, dataset);
+        return dataset;
+      }
+
+      function getAllCommandTestChartPoints(chart) {
+        return getCommandTestNodeDatasets(chart).flatMap(
+          (dataset) => dataset.data
+        );
+      }
+
+      function trimCommandTestChartPoints(chart) {
+        const nodeDatasets = getCommandTestNodeDatasets(chart);
+        let total = nodeDatasets.reduce(
+          (sum, dataset) => sum + dataset.data.length,
+          0
+        );
+
+        while (total > MAX_COMMAND_TEST_CHART_POINTS) {
+          let oldestDataset = null;
+          let oldestIndex = -1;
+          let oldestTime = Infinity;
+
+          nodeDatasets.forEach((dataset) => {
+            if (dataset.data.length === 0) return;
+            const firstPoint = dataset.data[0];
+            const time = +new Date(firstPoint.x);
+            if (time < oldestTime) {
+              oldestTime = time;
+              oldestDataset = dataset;
+              oldestIndex = 0;
+            }
+          });
+
+          if (!oldestDataset) break;
+          oldestDataset.data.splice(oldestIndex, 1);
+          total -= 1;
+        }
+      }
+
+      function updateCommandTestChartLegendHint(chart) {
+        const hint = document.getElementById("cmdTestChartLegendHint");
+        if (!hint) return;
+        const nodeCount = getCommandTestNodeDatasets(chart).length;
+        hint.hidden = nodeCount <= 1;
+      }
+
       function ensureCommandTestChart() {
         if (commandTestChart || typeof Chart === "undefined") {
           return commandTestChart;
@@ -2928,32 +3162,7 @@
         commandTestChart = new Chart(canvas, {
           type: "line",
           data: {
-            datasets: [
-              {
-                label: "Inter-arrival interval",
-                data: [],
-                borderColor: "#3b82f6",
-                backgroundColor: "rgba(37, 99, 235, 0.18)",
-                pointBackgroundColor: "#2563eb",
-                pointBorderColor: "#93c5fd",
-                pointRadius: 4,
-                pointHoverRadius: 7,
-                borderWidth: 2,
-                fill: true,
-                tension: 0.35,
-                showLine: true,
-              },
-              {
-                label: "Expected interval",
-                data: [],
-                borderColor: "rgba(202, 138, 4, 0.85)",
-                borderDash: [6, 4],
-                borderWidth: 2,
-                pointRadius: 0,
-                fill: false,
-                tension: 0,
-              },
-            ],
+            datasets: [createCommandTestExpectedDataset()],
           },
           options: {
             responsive: true,
@@ -2970,21 +3179,36 @@
               },
             },
             plugins: {
-              legend: { display: false },
+              legend: {
+                display: true,
+                position: "top",
+                align: "end",
+                labels: {
+                  color: "#a3a3a3",
+                  boxWidth: 12,
+                  boxHeight: 12,
+                  usePointStyle: true,
+                  padding: 14,
+                },
+              },
               tooltip: {
                 callbacks: {
+                  title(tooltipItems) {
+                    if (!tooltipItems.length) return "";
+                    const value = tooltipItems[0].parsed.x;
+                    return new Date(value).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                      fractionalSecondDigits: 3,
+                    });
+                  },
                   label(context) {
                     const y = context.parsed.y;
-                    if (context.datasetIndex !== 0) {
+                    if (context.dataset.expectedLine) {
                       return `Expected: ${y} ms`;
                     }
-                    const nodeId = context.raw?.nodeId;
-                    const lines = [];
-                    if (nodeId != null) {
-                      lines.push(`Node ${nodeId}`);
-                    }
-                    lines.push(`Interval: ${y} ms`);
-                    return lines;
+                    return `${context.dataset.label}: ${y} ms`;
                   },
                 },
               },
@@ -3028,8 +3252,9 @@
         const chart = ensureCommandTestChart();
         if (!chart) return;
 
-        chart.data.datasets[0].data = [];
-        chart.data.datasets[1].data = [];
+        commandTestNodeColorMap = {};
+        chart.data.datasets = [createCommandTestExpectedDataset()];
+        updateCommandTestChartLegendHint(chart);
         chart.update(animate ? "active" : "none");
       }
 
@@ -3037,12 +3262,27 @@
         const chart = ensureCommandTestChart();
         if (!chart) return;
 
-        chart.data.datasets[0].data = (chartPoints || []).map((point) => ({
-          x: new Date(point.timestamp),
-          y: point.intervalMs,
-          nodeId: point.nodeId ?? null,
-        }));
+        commandTestNodeColorMap = {};
+        chart.data.datasets = [createCommandTestExpectedDataset()];
+
+        (chartPoints || []).forEach((point) => {
+          const dataset = getOrCreateCommandTestNodeDataset(
+            chart,
+            point.nodeId ?? null
+          );
+          dataset.data.push({
+            x: new Date(point.timestamp),
+            y: point.intervalMs,
+            nodeId: point.nodeId ?? null,
+          });
+        });
+
+        getCommandTestNodeDatasets(chart).forEach((dataset) => {
+          dataset.data.sort((a, b) => +new Date(a.x) - +new Date(b.x));
+        });
+
         updateCommandTestExpectedLine();
+        updateCommandTestChartLegendHint(chart);
         chart.update(animate ? "active" : "none");
       }
 
@@ -3079,21 +3319,22 @@
         const chart = ensureCommandTestChart();
         if (!chart || commandTestExpectedIntervalMs == null) return;
 
-        const intervalPoints = chart.data.datasets[0].data;
-        if (intervalPoints.length === 0) {
-          chart.data.datasets[1].data = [];
-          chart.update("none");
+        const expectedDataset = getCommandTestExpectedDataset(chart);
+        if (!expectedDataset) return;
+
+        const allPoints = getAllCommandTestChartPoints(chart);
+        if (allPoints.length === 0) {
+          expectedDataset.data = [];
           return;
         }
 
-        const xs = intervalPoints.map((p) => +new Date(p.x));
+        const xs = allPoints.map((point) => +new Date(point.x));
         const minX = new Date(Math.min(...xs));
         const maxX = new Date(Math.max(...xs));
-        chart.data.datasets[1].data = [
+        expectedDataset.data = [
           { x: minX, y: commandTestExpectedIntervalMs },
           { x: maxX, y: commandTestExpectedIntervalMs },
         ];
-        chart.update("active");
       }
 
       function addCommandTestChartPoint(entry, animate) {
@@ -3111,20 +3352,20 @@
         const receivedAt = entry.timestamp
           ? new Date(entry.timestamp)
           : new Date();
+        const dataset = getOrCreateCommandTestNodeDataset(
+          chart,
+          entry.nodeId ?? null
+        );
 
-        chart.data.datasets[0].data.push({
+        dataset.data.push({
           x: receivedAt,
           y: entry.intervalMs,
           nodeId: entry.nodeId ?? null,
         });
 
-        if (chart.data.datasets[0].data.length > MAX_COMMAND_TEST_CHART_POINTS) {
-          const removeCount =
-            chart.data.datasets[0].data.length - MAX_COMMAND_TEST_CHART_POINTS;
-          chart.data.datasets[0].data.splice(0, removeCount);
-        }
-
+        trimCommandTestChartPoints(chart);
         updateCommandTestExpectedLine();
+        updateCommandTestChartLegendHint(chart);
         if (animate !== false) {
           chart.update("active");
         }
@@ -3450,12 +3691,12 @@
         const payload = {};
 
         if (rawNodeId) {
-          const nodeId = parseInt(rawNodeId, 10);
-          if (Number.isNaN(nodeId) || nodeId < 1 || nodeId > 232) {
-            showAlert("Node ID must be between 1 and 232", "error");
+          const parsedNodeId = parseOptionalPositiveNodeId(rawNodeId);
+          if (!parsedNodeId.ok) {
+            showAlert(parsedNodeId.message, "error");
             return;
           }
-          payload.nodeId = nodeId;
+          payload.nodeId = parsedNodeId.value;
         }
 
         if (!rawInterval) {
