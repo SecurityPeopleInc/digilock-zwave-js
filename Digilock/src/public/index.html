@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Digilock Z-Wave Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
       /* Design System - Dark Mode First */
       :root {
@@ -771,9 +773,72 @@
 
       .cmd-test-stats {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
         gap: var(--spacing-md);
         margin-bottom: var(--spacing-lg);
+      }
+
+      .cmd-test-chart-card {
+        margin-bottom: var(--spacing-lg);
+        padding: var(--spacing-lg);
+        background: var(--bg-primary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+      }
+
+      .cmd-test-chart-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+      }
+
+      .cmd-test-chart-header h3 {
+        margin: 0;
+        font-size: var(--font-size-lg);
+      }
+
+      .cmd-test-chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-md);
+        font-size: var(--font-size-xs);
+        color: var(--text-secondary);
+      }
+
+      .cmd-test-chart-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+      }
+
+      .cmd-test-chart-legend-swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+        display: inline-block;
+      }
+
+      .cmd-test-chart-wrap {
+        position: relative;
+        height: 320px;
+      }
+
+      .cmd-test-log-file {
+        margin-bottom: var(--spacing-md);
+        font-size: var(--font-size-sm);
+        color: var(--text-secondary);
+      }
+
+      .cmd-test-log-file a {
+        color: var(--status-connected);
+      }
+
+      .cmd-test-entry.late {
+        border-left: 3px solid var(--status-warning);
+        background: rgba(202, 138, 4, 0.12);
       }
 
       .cmd-test-stat {
@@ -802,6 +867,14 @@
 
       .cmd-test-stat.failed .cmd-test-stat-value {
         color: var(--status-inactive);
+      }
+
+      .cmd-test-stat.incoming .cmd-test-stat-value {
+        color: var(--status-connected);
+      }
+
+      .cmd-test-stat.outgoing .cmd-test-stat-value {
+        color: var(--status-active);
       }
 
       .cmd-test-status-badge {
@@ -881,6 +954,10 @@
         border-left: 3px solid var(--status-active);
       }
 
+      .cmd-test-entry.incoming {
+        border-left: 3px solid var(--status-connected);
+      }
+
       .cmd-test-entry.failed {
         border-left: 3px solid var(--status-inactive);
         background: var(--alert-error-bg);
@@ -922,6 +999,23 @@
       .cmd-test-entry-status.failed {
         background: var(--alert-error-bg);
         color: var(--alert-error-text);
+      }
+
+      .cmd-test-entry-direction {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+      }
+
+      .cmd-test-entry-direction.incoming {
+        background: var(--alert-info-bg);
+        color: var(--alert-info-text);
+      }
+
+      .cmd-test-entry-direction.outgoing {
+        background: var(--alert-success-bg);
+        color: var(--alert-success-text);
       }
 
       .cmd-test-entry-details {
@@ -1452,8 +1546,9 @@
         <div class="header">
           <h1 id="command-monitor-heading">Lock Command Monitor</h1>
           <p>
-            Start a test session to monitor all outgoing commands sent to locks
-            in real time, including success and error status.
+            Monitor periodic lock traffic: set the device interval and node ID,
+            then watch inter-arrival timing on a live chart. Events are logged to
+            a shared JSONL file on the server (timestamp + interval metrics).
           </p>
         </div>
 
@@ -1470,14 +1565,40 @@
 
           <div class="cmd-test-controls">
             <div class="form-group" style="margin-bottom: 0">
-              <label for="cmdTestNodeId">Filter by Node ID (optional)</label>
+              <label for="cmdTestNodeId">Node ID</label>
               <input
                 type="number"
                 id="cmdTestNodeId"
                 min="1"
                 max="232"
-                placeholder="All nodes"
-                style="width: 150px"
+                placeholder="e.g. 5"
+                required
+                style="width: 120px"
+              />
+            </div>
+            <div class="form-group" style="margin-bottom: 0">
+              <label for="cmdTestIntervalSec">Expected interval (seconds)</label>
+              <input
+                type="number"
+                id="cmdTestIntervalSec"
+                min="0.1"
+                step="0.1"
+                placeholder="e.g. 10"
+                required
+                style="width: 140px"
+              />
+            </div>
+            <div class="form-group" style="margin-bottom: 0">
+              <label for="cmdTestTolerance">Late tolerance (%)</label>
+              <input
+                type="number"
+                id="cmdTestTolerance"
+                min="0"
+                max="100"
+                step="1"
+                value="10"
+                title="Mark as late when interval exceeds expected × (1 + tolerance%)"
+                style="width: 120px"
               />
             </div>
             <button
@@ -1513,11 +1634,15 @@
           <div class="cmd-test-stats">
             <div class="cmd-test-stat">
               <div class="cmd-test-stat-value" id="cmdTestStatTotal">0</div>
-              <div class="cmd-test-stat-label">Total Commands</div>
+              <div class="cmd-test-stat-label">Total</div>
             </div>
-            <div class="cmd-test-stat success">
-              <div class="cmd-test-stat-value" id="cmdTestStatSuccess">0</div>
-              <div class="cmd-test-stat-label">Successful</div>
+            <div class="cmd-test-stat incoming">
+              <div class="cmd-test-stat-value" id="cmdTestStatIncoming">0</div>
+              <div class="cmd-test-stat-label">Incoming</div>
+            </div>
+            <div class="cmd-test-stat outgoing">
+              <div class="cmd-test-stat-value" id="cmdTestStatOutgoing">0</div>
+              <div class="cmd-test-stat-label">Outgoing</div>
             </div>
             <div class="cmd-test-stat failed">
               <div class="cmd-test-stat-value" id="cmdTestStatFailed">0</div>
@@ -1525,7 +1650,66 @@
             </div>
             <div class="cmd-test-stat">
               <div class="cmd-test-stat-value" id="cmdTestStatDuration">--</div>
-              <div class="cmd-test-stat-label">Session Duration</div>
+              <div class="cmd-test-stat-label">Duration</div>
+            </div>
+            <div class="cmd-test-stat failed">
+              <div class="cmd-test-stat-value" id="cmdTestStatLate">0</div>
+              <div class="cmd-test-stat-label">Late</div>
+            </div>
+            <div class="cmd-test-stat">
+              <div class="cmd-test-stat-value" id="cmdTestStatAvgInterval">--</div>
+              <div class="cmd-test-stat-label">Avg interval</div>
+            </div>
+          </div>
+
+          <div id="cmdTestLogFileInfo" class="cmd-test-log-file" hidden>
+            Session log:
+            <a id="cmdTestLogFileLink" href="#" target="_blank" rel="noopener"
+              >Download JSONL</a
+            >
+            <span id="cmdTestLogFileName"></span>
+          </div>
+
+          <div class="cmd-test-chart-card">
+            <div class="cmd-test-chart-header">
+              <h3>Interval timing (real time)</h3>
+              <div class="cmd-test-chart-legend">
+                <span class="cmd-test-chart-legend-item">
+                  <span
+                    class="cmd-test-chart-legend-swatch"
+                    style="background: var(--status-connected)"
+                  ></span>
+                  On time
+                </span>
+                <span class="cmd-test-chart-legend-item">
+                  <span
+                    class="cmd-test-chart-legend-swatch"
+                    style="background: var(--status-warning)"
+                  ></span>
+                  Late
+                </span>
+                <span class="cmd-test-chart-legend-item">
+                  <span
+                    class="cmd-test-chart-legend-swatch"
+                    style="background: var(--status-warning); opacity: 0.5"
+                  ></span>
+                  Expected interval
+                </span>
+              </div>
+            </div>
+            <p
+              style="
+                margin: 0 0 var(--spacing-md);
+                font-size: var(--font-size-sm);
+                color: var(--text-secondary);
+              "
+            >
+              X-axis: time received. Y-axis: milliseconds since the previous
+              incoming command from this node. Points above the dashed line are
+              late.
+            </p>
+            <div class="cmd-test-chart-wrap">
+              <canvas id="cmdTestIntervalChart" aria-label="Command interval chart"></canvas>
             </div>
           </div>
 
@@ -1535,9 +1719,9 @@
             </div>
             <div class="cmd-test-log-messages" id="cmdTestLogMessages">
               <div class="ws-log-empty">
-                Start monitoring to record outgoing lock commands. Send commands
-                from the Commands tab or other sources while the session is
-                active.
+                Start monitoring to record all incoming and outgoing lock
+                commands. Interact with locks from the Commands tab or wait for
+                lock-initiated traffic while the session is active.
               </div>
             </div>
           </div>
@@ -1561,11 +1745,24 @@
       let commandTestActive = false;
       let commandTestStartedAt = null;
       let commandTestNodeFilter = null;
+      let commandTestExpectedIntervalMs = null;
+      let commandTestTolerancePercent = 10;
+      let commandTestLogUrl = null;
       let commandTestEntries = [];
       let commandTestAutoScroll = true;
       let commandTestDurationInterval = null;
-      let commandTestStats = { total: 0, success: 0, failed: 0 };
+      let commandTestStats = {
+        total: 0,
+        incoming: 0,
+        outgoing: 0,
+        failed: 0,
+        late: 0,
+        intervalSum: 0,
+        intervalCount: 0,
+      };
+      let commandTestChart = null;
       const MAX_COMMAND_TEST_ENTRIES = 500;
+      const MAX_COMMAND_TEST_CHART_POINTS = 300;
 
       // Initialize WebSocket connection
       function initWebSocket() {
@@ -2160,6 +2357,7 @@
       }
 
       // Initialize WebSocket connection
+      ensureCommandTestChart();
       initWebSocket();
 
       // Cleanup on page unload
@@ -2726,27 +2924,230 @@
       }
 
       // Command Test Monitor Functions
+      function ensureCommandTestChart() {
+        if (commandTestChart || typeof Chart === "undefined") {
+          return commandTestChart;
+        }
+
+        const canvas = document.getElementById("cmdTestIntervalChart");
+        if (!canvas) {
+          return null;
+        }
+
+        commandTestChart = new Chart(canvas, {
+          type: "scatter",
+          data: {
+            datasets: [
+              {
+                label: "Inter-arrival interval",
+                data: [],
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                showLine: false,
+              },
+              {
+                label: "Expected interval",
+                data: [],
+                type: "line",
+                borderColor: "rgba(202, 138, 4, 0.85)",
+                borderDash: [6, 4],
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label(context) {
+                    const y = context.parsed.y;
+                    if (context.datasetIndex !== 0) {
+                      return `Expected: ${y} ms`;
+                    }
+                    const late = context.raw?.late;
+                    const lateBy = context.raw?.lateByMs;
+                    const lines = [`Interval: ${y} ms`];
+                    if (late) {
+                      lines.push(`Late by ${lateBy} ms`);
+                    }
+                    return lines;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                type: "time",
+                time: {
+                  tooltipFormat: "HH:mm:ss.SSS",
+                  displayFormats: {
+                    second: "HH:mm:ss",
+                    minute: "HH:mm",
+                  },
+                },
+                title: {
+                  display: true,
+                  text: "Time received",
+                  color: "#a3a3a3",
+                },
+                ticks: { color: "#a3a3a3" },
+                grid: { color: "rgba(255,255,255,0.06)" },
+              },
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Interval since previous (ms)",
+                  color: "#a3a3a3",
+                },
+                ticks: { color: "#a3a3a3" },
+                grid: { color: "rgba(255,255,255,0.06)" },
+              },
+            },
+          },
+        });
+
+        return commandTestChart;
+      }
+
+      function resetCommandTestChart() {
+        const chart = ensureCommandTestChart();
+        if (!chart) return;
+
+        chart.data.datasets[0].data = [];
+        chart.data.datasets[1].data = [];
+        chart.update("none");
+      }
+
+      function updateCommandTestExpectedLine() {
+        const chart = ensureCommandTestChart();
+        if (!chart || commandTestExpectedIntervalMs == null) return;
+
+        const intervalPoints = chart.data.datasets[0].data;
+        if (intervalPoints.length === 0) {
+          chart.data.datasets[1].data = [];
+          chart.update("none");
+          return;
+        }
+
+        const xs = intervalPoints.map((p) => +new Date(p.x));
+        const minX = new Date(Math.min(...xs));
+        const maxX = new Date(Math.max(...xs));
+        chart.data.datasets[1].data = [
+          { x: minX, y: commandTestExpectedIntervalMs },
+          { x: maxX, y: commandTestExpectedIntervalMs },
+        ];
+        chart.update("none");
+      }
+
+      function addCommandTestChartPoint(entry) {
+        if (
+          entry.direction !== "incoming" ||
+          entry.intervalMs == null ||
+          Number.isNaN(entry.intervalMs)
+        ) {
+          return;
+        }
+
+        const chart = ensureCommandTestChart();
+        if (!chart) return;
+
+        const receivedAt = entry.timestamp
+          ? new Date(entry.timestamp)
+          : new Date();
+        const isLate = entry.late === true;
+
+        chart.data.datasets[0].data.push({
+          x: receivedAt,
+          y: entry.intervalMs,
+          late: isLate,
+          lateByMs: entry.lateByMs || 0,
+        });
+
+        const pointIndex = chart.data.datasets[0].data.length - 1;
+        chart.data.datasets[0].pointBackgroundColor =
+          chart.data.datasets[0].pointBackgroundColor || [];
+        chart.data.datasets[0].pointBorderColor =
+          chart.data.datasets[0].pointBorderColor || [];
+        chart.data.datasets[0].pointBackgroundColor[pointIndex] = isLate
+          ? "#ca8a04"
+          : "#2563eb";
+        chart.data.datasets[0].pointBorderColor[pointIndex] = isLate
+          ? "#eab308"
+          : "#3b82f6";
+
+        if (chart.data.datasets[0].data.length > MAX_COMMAND_TEST_CHART_POINTS) {
+          const removeCount =
+            chart.data.datasets[0].data.length - MAX_COMMAND_TEST_CHART_POINTS;
+          chart.data.datasets[0].data.splice(0, removeCount);
+          chart.data.datasets[0].pointBackgroundColor.splice(0, removeCount);
+          chart.data.datasets[0].pointBorderColor.splice(0, removeCount);
+        }
+
+        updateCommandTestExpectedLine();
+      }
+
+      function updateCommandTestLogFileInfo(sessionData) {
+        const container = document.getElementById("cmdTestLogFileInfo");
+        const link = document.getElementById("cmdTestLogFileLink");
+        const nameEl = document.getElementById("cmdTestLogFileName");
+
+        if (!container || !link || !nameEl) return;
+
+        const logUrl = sessionData?.logUrl || commandTestLogUrl;
+        if (logUrl) {
+          commandTestLogUrl = logUrl;
+          link.href = logUrl;
+          nameEl.textContent = sessionData?.logFileName
+            ? ` (${sessionData.logFileName})`
+            : "";
+          container.hidden = false;
+        } else if (!commandTestActive) {
+          container.hidden = true;
+        }
+      }
+
       function applyCommandTestSession(sessionData, active) {
         commandTestActive = active;
         commandTestStartedAt = active ? sessionData?.startedAt || new Date().toISOString() : null;
         commandTestNodeFilter = active ? sessionData?.nodeId ?? null : null;
+        commandTestExpectedIntervalMs = active
+          ? sessionData?.expectedIntervalMs ?? null
+          : null;
+        commandTestTolerancePercent = active
+          ? sessionData?.tolerancePercent ?? 10
+          : 10;
 
         const badge = document.getElementById("cmdTestStatusBadge");
         const statusText = document.getElementById("cmdTestStatusText");
         const startBtn = document.getElementById("cmdTestStartBtn");
         const stopBtn = document.getElementById("cmdTestStopBtn");
         const nodeInput = document.getElementById("cmdTestNodeId");
+        const intervalInput = document.getElementById("cmdTestIntervalSec");
+        const toleranceInput = document.getElementById("cmdTestTolerance");
 
         if (active) {
           badge.className = "cmd-test-status-badge recording";
-          const filterLabel =
-            commandTestNodeFilter !== null && commandTestNodeFilter !== undefined
-              ? `node ${commandTestNodeFilter}`
-              : "all nodes";
-          statusText.textContent = `Monitoring active (${filterLabel})`;
+          const intervalSec =
+            commandTestExpectedIntervalMs != null
+              ? (commandTestExpectedIntervalMs / 1000).toFixed(
+                  commandTestExpectedIntervalMs % 1000 === 0 ? 0 : 1
+                )
+              : "?";
+          statusText.textContent = `Monitoring node ${commandTestNodeFilter} every ~${intervalSec}s (±${commandTestTolerancePercent}%)`;
           startBtn.disabled = true;
           stopBtn.disabled = false;
           nodeInput.disabled = true;
+          if (intervalInput) intervalInput.disabled = true;
+          if (toleranceInput) toleranceInput.disabled = true;
+          updateCommandTestLogFileInfo(sessionData);
+          ensureCommandTestChart();
           startCommandTestDurationTimer();
         } else {
           badge.className = "cmd-test-status-badge idle";
@@ -2754,6 +3155,11 @@
           startBtn.disabled = false;
           stopBtn.disabled = true;
           nodeInput.disabled = false;
+          if (intervalInput) intervalInput.disabled = false;
+          if (toleranceInput) toleranceInput.disabled = false;
+          if (sessionData?.logUrl) {
+            updateCommandTestLogFileInfo(sessionData);
+          }
           stopCommandTestDurationTimer();
           updateCommandTestDurationDisplay();
         }
@@ -2794,10 +3200,27 @@
       function updateCommandTestStats() {
         document.getElementById("cmdTestStatTotal").textContent =
           commandTestStats.total;
-        document.getElementById("cmdTestStatSuccess").textContent =
-          commandTestStats.success;
+        document.getElementById("cmdTestStatIncoming").textContent =
+          commandTestStats.incoming;
+        document.getElementById("cmdTestStatOutgoing").textContent =
+          commandTestStats.outgoing;
         document.getElementById("cmdTestStatFailed").textContent =
           commandTestStats.failed;
+        const lateEl = document.getElementById("cmdTestStatLate");
+        if (lateEl) {
+          lateEl.textContent = commandTestStats.late;
+        }
+        const avgEl = document.getElementById("cmdTestStatAvgInterval");
+        if (avgEl) {
+          if (commandTestStats.intervalCount > 0) {
+            const avg = Math.round(
+              commandTestStats.intervalSum / commandTestStats.intervalCount
+            );
+            avgEl.textContent = `${avg} ms`;
+          } else {
+            avgEl.textContent = "--";
+          }
+        }
       }
 
       function formatCommandTestTimestamp(timestamp) {
@@ -2812,6 +3235,9 @@
 
       function formatCommandTestDetails(data) {
         const parts = [];
+        if (data.direction) {
+          parts.push(data.direction === "incoming" ? "From lock" : "To lock");
+        }
         parts.push(`Node ${data.nodeId}`);
         if (data.commandClass) {
           parts.push(data.commandClass);
@@ -2834,6 +3260,12 @@
         if (data.duration !== undefined) {
           parts.push(`${data.duration}ms`);
         }
+        if (data.intervalMs != null) {
+          parts.push(`Interval: ${data.intervalMs}ms`);
+          if (data.late) {
+            parts.push(`LATE (+${data.lateByMs || 0}ms)`);
+          }
+        }
         if (data.source) {
           parts.push(`Source: ${data.source}`);
         }
@@ -2852,9 +3284,24 @@
 
         container.innerHTML = commandTestEntries
           .map((entry) => {
+            const isIncoming = entry.direction === "incoming";
             const success = entry.success !== false;
-            const statusClass = success ? "success" : "failed";
-            const statusLabel = success ? "SUCCESS" : "FAILED";
+            const isLate = entry.late === true;
+            const statusClass = isLate
+              ? "late"
+              : isIncoming
+              ? "incoming"
+              : success
+              ? "success"
+              : "failed";
+            const directionLabel = isIncoming ? "IN" : "OUT";
+            const statusLabel = isLate
+              ? "LATE"
+              : isIncoming
+              ? "RECEIVED"
+              : success
+              ? "SUCCESS"
+              : "FAILED";
             const payloadLine = entry.payloadHex
               ? `<div class="cmd-test-entry-details">Payload: ${escapeHtml(entry.payloadHex)}</div>`
               : "";
@@ -2867,6 +3314,7 @@
                 <div class="cmd-test-entry-time">${formatCommandTestTimestamp(entry.timestamp)}</div>
                 <div class="cmd-test-entry-body">
                   <div class="cmd-test-entry-header">
+                    <span class="cmd-test-entry-direction ${isIncoming ? "incoming" : "outgoing"}">${directionLabel}</span>
                     <span class="cmd-test-entry-status ${statusClass}">${statusLabel}</span>
                     <span style="font-size: var(--font-size-xs); color: var(--text-secondary);">
                       ${escapeHtml(formatCommandTestDetails(entry))}
@@ -2893,10 +3341,21 @@
         }
 
         commandTestStats.total += 1;
-        if (entry.success !== false) {
-          commandTestStats.success += 1;
+        if (entry.direction === "incoming") {
+          commandTestStats.incoming += 1;
         } else {
+          commandTestStats.outgoing += 1;
+        }
+        if (entry.success === false) {
           commandTestStats.failed += 1;
+        }
+        if (entry.late === true) {
+          commandTestStats.late += 1;
+        }
+        if (entry.intervalMs != null && !Number.isNaN(entry.intervalMs)) {
+          commandTestStats.intervalSum += entry.intervalMs;
+          commandTestStats.intervalCount += 1;
+          addCommandTestChartPoint(entry);
         }
 
         updateCommandTestStats();
@@ -2905,7 +3364,16 @@
 
       function clearCommandTestLog() {
         commandTestEntries = [];
-        commandTestStats = { total: 0, success: 0, failed: 0 };
+        commandTestStats = {
+          total: 0,
+          incoming: 0,
+          outgoing: 0,
+          failed: 0,
+          late: 0,
+          intervalSum: 0,
+          intervalCount: 0,
+        };
+        resetCommandTestChart();
         updateCommandTestStats();
         renderCommandTestLog();
       }
@@ -2922,6 +3390,26 @@
         try {
           const result = await sendWebSocketMessage("GET_COMMAND_TEST_STATUS");
           if (result.type === "COMMAND_TEST_STATUS" && result.data?.active) {
+            const nodeInput = document.getElementById("cmdTestNodeId");
+            const intervalInput = document.getElementById("cmdTestIntervalSec");
+            const toleranceInput = document.getElementById("cmdTestTolerance");
+            if (nodeInput && result.data.nodeId != null) {
+              nodeInput.value = String(result.data.nodeId);
+            }
+            if (
+              intervalInput &&
+              result.data.expectedIntervalMs != null
+            ) {
+              intervalInput.value = String(
+                result.data.expectedIntervalMs / 1000
+              );
+            }
+            if (
+              toleranceInput &&
+              result.data.tolerancePercent != null
+            ) {
+              toleranceInput.value = String(result.data.tolerancePercent);
+            }
             applyCommandTestSession(result.data, true);
           }
         } catch (error) {
@@ -2931,17 +3419,51 @@
 
       async function startCommandTest() {
         const nodeInput = document.getElementById("cmdTestNodeId");
+        const intervalInput = document.getElementById("cmdTestIntervalSec");
+        const toleranceInput = document.getElementById("cmdTestTolerance");
         const rawNodeId = nodeInput.value.trim();
-        const payload = {};
+        const rawInterval = intervalInput.value.trim();
+        const rawTolerance = toleranceInput.value.trim();
 
-        if (rawNodeId) {
-          const nodeId = parseInt(rawNodeId, 10);
-          if (Number.isNaN(nodeId) || nodeId < 1 || nodeId > 232) {
-            showAlert("Node ID must be between 1 and 232", "error");
-            return;
-          }
-          payload.nodeId = nodeId;
+        if (!rawNodeId) {
+          showAlert("Node ID is required", "error");
+          return;
         }
+
+        const nodeId = parseInt(rawNodeId, 10);
+        if (Number.isNaN(nodeId) || nodeId < 1 || nodeId > 232) {
+          showAlert("Node ID must be between 1 and 232", "error");
+          return;
+        }
+
+        if (!rawInterval) {
+          showAlert("Expected interval is required", "error");
+          return;
+        }
+
+        const intervalSec = parseFloat(rawInterval, 10);
+        if (Number.isNaN(intervalSec) || intervalSec <= 0) {
+          showAlert("Expected interval must be a positive number", "error");
+          return;
+        }
+
+        const tolerancePercent = rawTolerance
+          ? parseFloat(rawTolerance, 10)
+          : 10;
+        if (
+          Number.isNaN(tolerancePercent) ||
+          tolerancePercent < 0 ||
+          tolerancePercent > 100
+        ) {
+          showAlert("Tolerance must be between 0 and 100", "error");
+          return;
+        }
+
+        const payload = {
+          nodeId,
+          expectedIntervalSec: intervalSec,
+          tolerancePercent,
+        };
 
         const startBtn = document.getElementById("cmdTestStartBtn");
         startBtn.disabled = true;
@@ -2953,6 +3475,7 @@
           );
           if (result.type === "COMMAND_TEST_STARTED") {
             clearCommandTestLog();
+            commandTestLogUrl = null;
             applyCommandTestSession(result.data, true);
             showAlert("Command monitoring started", "success");
           }
@@ -2969,7 +3492,7 @@
         try {
           const result = await sendWebSocketMessage("STOP_COMMAND_TEST");
           if (result.type === "COMMAND_TEST_STOPPED") {
-            applyCommandTestSession(null, false);
+            applyCommandTestSession(result.data || null, false);
             showAlert("Command monitoring stopped", "info");
           }
         } catch (error) {

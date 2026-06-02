@@ -1,3 +1,5 @@
+import { appendFile, mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import { Plugin } from "../models/Plugin.js";
 import { WebSocketServer } from "ws";
 import { ZWaveProvisioningClient } from "../zwave-client.js";
@@ -25,7 +27,13 @@ export class ZWaveControllerWebsocket extends Plugin {
 			active: false,
 			nodeId: null,
 			startedAt: null,
+			expectedIntervalMs: null,
+			tolerancePercent: 10,
+			lastIncomingAt: null,
+			logFileName: null,
+			logFilePath: null,
 		};
+		this.commandMonitorLogDir = null;
 	}
 
 	/**
@@ -53,6 +61,8 @@ export class ZWaveControllerWebsocket extends Plugin {
 		this.securityKeysLongRange = options.securityKeysLongRange || null;
 		this.cacheDir = options.cacheDir ?? "./store/cache";
 		this.logLevel = options.logLevel ?? "silly";
+		this.commandMonitorLogDir =
+			options.commandMonitorLogDir ?? "./store/command-monitor-logs";
 
 		this.wss = new WebSocketServer({ server: options.server });
 
@@ -207,7 +217,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 			});
 		});
 
-		this.zwaveClient.on("commandSent", (commandData) => {
+		this.zwaveClient.on("commandActivity", (commandData) => {
 			this._broadcastCommandTestEvent(commandData);
 		});
 	}
@@ -230,11 +240,167 @@ export class ZWaveControllerWebsocket extends Plugin {
 			return;
 		}
 
+		const enriched = this._enrichCommandTestEvent(commandData);
+		const eventTimestamp =
+			enriched.timestamp || new Date().toISOString();
+
+		this._appendCommandTestLogRecord(enriched, eventTimestamp).catch(
+			(error) => {
+				console.warn(
+					"[CommandMonitor] Failed to write log record:",
+					error.message,
+				);
+			},
+		);
+
 		this.broadcast({
 			type: "COMMAND_TEST_EVENT",
-			data: commandData,
-			timestamp: new Date().toISOString(),
+			data: enriched,
+			timestamp: eventTimestamp,
 		});
+	}
+
+	/**
+	 * Compute inter-arrival interval metrics for incoming traffic.
+	 * @private
+	 */
+	_enrichCommandTestEvent(commandData) {
+		const session = this.commandTestSession;
+		const enriched = { ...commandData };
+
+		if (
+			commandData.direction !== "incoming" ||
+			session.expectedIntervalMs == null
+		) {
+			return enriched;
+		}
+
+		const receivedAt = commandData.timestamp
+			? new Date(commandData.timestamp).getTime()
+			: Date.now();
+
+		enriched.expectedIntervalMs = session.expectedIntervalMs;
+		enriched.tolerancePercent = session.tolerancePercent;
+
+		if (session.lastIncomingAt != null) {
+			const intervalMs = receivedAt - session.lastIncomingAt;
+			const thresholdMs =
+				session.expectedIntervalMs *
+				(1 + session.tolerancePercent / 100);
+			enriched.intervalMs = intervalMs;
+			enriched.late = intervalMs > thresholdMs;
+			enriched.lateByMs = enriched.late
+				? Math.round(intervalMs - session.expectedIntervalMs)
+				: 0;
+		} else {
+			enriched.intervalMs = null;
+			enriched.late = false;
+			enriched.lateByMs = 0;
+		}
+
+		session.lastIncomingAt = receivedAt;
+		return enriched;
+	}
+
+	/**
+	 * @private
+	 */
+	_buildCommandTestLogRecord(enriched, eventTimestamp) {
+		return {
+			recordType: "event",
+			timestamp: eventTimestamp,
+			nodeId: enriched.nodeId ?? null,
+			direction: enriched.direction ?? null,
+			success: enriched.success !== false,
+			intervalMs:
+				enriched.intervalMs === undefined ? null : enriched.intervalMs,
+			expectedIntervalMs: enriched.expectedIntervalMs ?? null,
+			tolerancePercent: enriched.tolerancePercent ?? null,
+			late: enriched.late === true,
+			lateByMs: enriched.lateByMs ?? 0,
+			commandClass: enriched.commandClass ?? null,
+			ccId: enriched.ccId ?? null,
+			ccCommand: enriched.ccCommand ?? null,
+			manufacturerId: enriched.manufacturerId ?? null,
+			frameNumber: enriched.frameNumber ?? null,
+			duration: enriched.duration ?? null,
+			source: enriched.source ?? null,
+			payloadHex: enriched.payloadHex ?? null,
+			error: enriched.error ?? null,
+		};
+	}
+
+	/**
+	 * @private
+	 */
+	async _appendCommandTestLogRecord(enriched, eventTimestamp) {
+		const logPath = this.commandTestSession.logFilePath;
+		if (!logPath) {
+			return;
+		}
+
+		const record = this._buildCommandTestLogRecord(
+			enriched,
+			eventTimestamp,
+		);
+		await appendFile(logPath, `${JSON.stringify(record)}\n`, "utf8");
+	}
+
+	/**
+	 * @private
+	 */
+	_sanitizeLogFileSegment(value) {
+		return String(value).replace(/[^a-zA-Z0-9._-]/g, "-");
+	}
+
+	/**
+	 * @private
+	 */
+	async _openCommandTestLogFile(session) {
+		const logDir =
+			this.commandMonitorLogDir || "./store/command-monitor-logs";
+		await mkdir(logDir, { recursive: true });
+
+		const startedAt = session.startedAt || new Date().toISOString();
+		const safeTime = this._sanitizeLogFileSegment(startedAt);
+		const fileName = `command-monitor-node${session.nodeId}-${safeTime}.jsonl`;
+		const logFilePath = join(logDir, fileName);
+
+		const header = {
+			recordType: "session_start",
+			timestamp: startedAt,
+			nodeId: session.nodeId,
+			expectedIntervalMs: session.expectedIntervalMs,
+			tolerancePercent: session.tolerancePercent,
+			logFormatVersion: 1,
+		};
+
+		await appendFile(
+			logFilePath,
+			`${JSON.stringify(header)}\n`,
+			"utf8",
+		);
+
+		session.logFileName = fileName;
+		session.logFilePath = logFilePath;
+	}
+
+	/**
+	 * @private
+	 */
+	async _closeCommandTestLogFile(session, stoppedAt) {
+		const logPath = session.logFilePath;
+		if (!logPath) {
+			return;
+		}
+
+		const footer = {
+			recordType: "session_end",
+			timestamp: stoppedAt,
+			nodeId: session.nodeId,
+		};
+
+		await appendFile(logPath, `${JSON.stringify(footer)}\n`, "utf8");
 	}
 
 	/**
@@ -1218,7 +1384,8 @@ export class ZWaveControllerWebsocket extends Plugin {
 						response: result ? "Received" : "No response",
 					});
 
-					this.zwaveClient.reportCommandSent({
+					this.zwaveClient.reportCommandActivity({
+						direction: "outgoing",
 						nodeId: numericNodeId,
 						ccId: numericCCId,
 						ccCommand: numericCCCommand,
@@ -1242,7 +1409,8 @@ export class ZWaveControllerWebsocket extends Plugin {
 						duration,
 					});
 
-					this.zwaveClient.reportCommandSent({
+					this.zwaveClient.reportCommandActivity({
+						direction: "outgoing",
 						nodeId: numericNodeId,
 						ccId: numericCCId,
 						ccCommand: numericCCCommand,
@@ -1283,40 +1451,112 @@ export class ZWaveControllerWebsocket extends Plugin {
 	async handleStartCommandTest(client, data, requestId) {
 		try {
 			const rawNodeId = data.nodeId;
-			let filterNodeId = null;
+			if (
+				rawNodeId === undefined ||
+				rawNodeId === null ||
+				rawNodeId === ""
+			) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "nodeId is required for command monitoring",
+				});
+				return;
+			}
+
+			const filterNodeId = Number.isInteger(rawNodeId)
+				? rawNodeId
+				: Number(rawNodeId);
+			if (
+				Number.isNaN(filterNodeId) ||
+				filterNodeId < 1 ||
+				filterNodeId > 232
+			) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "nodeId must be an integer between 1 and 232",
+				});
+				return;
+			}
+
+			let expectedIntervalMs = null;
+			if (data.expectedIntervalMs !== undefined) {
+				expectedIntervalMs = Number(data.expectedIntervalMs);
+			} else if (data.expectedIntervalSec !== undefined) {
+				expectedIntervalMs = Number(data.expectedIntervalSec) * 1000;
+			}
 
 			if (
-				rawNodeId !== undefined &&
-				rawNodeId !== null &&
-				rawNodeId !== ""
+				Number.isNaN(expectedIntervalMs) ||
+				expectedIntervalMs <= 0
 			) {
-				filterNodeId = Number.isInteger(rawNodeId)
-					? rawNodeId
-					: Number(rawNodeId);
-				if (Number.isNaN(filterNodeId)) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message:
+						"expectedIntervalMs (or expectedIntervalSec) must be a positive number",
+				});
+				return;
+			}
+
+			let tolerancePercent = 10;
+			if (data.tolerancePercent !== undefined) {
+				tolerancePercent = Number(data.tolerancePercent);
+				if (
+					Number.isNaN(tolerancePercent) ||
+					tolerancePercent < 0 ||
+					tolerancePercent > 100
+				) {
 					this.sendResponse(client, requestId, {
 						type: "ERROR",
-						message: "Invalid nodeId format",
+						message:
+							"tolerancePercent must be a number between 0 and 100",
 					});
 					return;
 				}
 			}
 
+			const startedAt = new Date().toISOString();
 			this.commandTestSession = {
 				active: true,
 				nodeId: filterNodeId,
-				startedAt: new Date().toISOString(),
+				startedAt,
+				expectedIntervalMs: Math.round(expectedIntervalMs),
+				tolerancePercent,
+				lastIncomingAt: null,
+				logFileName: null,
+				logFilePath: null,
+			};
+
+			await this._openCommandTestLogFile(this.commandTestSession);
+
+			const sessionPayload = {
+				active: this.commandTestSession.active,
+				nodeId: this.commandTestSession.nodeId,
+				startedAt: this.commandTestSession.startedAt,
+				expectedIntervalMs: this.commandTestSession.expectedIntervalMs,
+				tolerancePercent: this.commandTestSession.tolerancePercent,
+				logFileName: this.commandTestSession.logFileName,
+				logUrl: `/command-monitor-logs/${this.commandTestSession.logFileName}`,
 			};
 
 			const response = {
 				type: "COMMAND_TEST_STARTED",
-				data: { ...this.commandTestSession },
+				data: sessionPayload,
 				timestamp: new Date().toISOString(),
 			};
 
 			this.sendResponse(client, requestId, response);
 			this.broadcast(response);
 		} catch (error) {
+			this.commandTestSession = {
+				active: false,
+				nodeId: null,
+				startedAt: null,
+				expectedIntervalMs: null,
+				tolerancePercent: 10,
+				lastIncomingAt: null,
+				logFileName: null,
+				logFilePath: null,
+			};
 			this.sendResponse(client, requestId, {
 				type: "ERROR",
 				message: error.message || "Failed to start command test",
@@ -1326,15 +1566,38 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 	async handleStopCommandTest(client, requestId) {
 		try {
+			const stoppedAt = new Date().toISOString();
+			const previousSession = { ...this.commandTestSession };
+
+			if (previousSession.active && previousSession.logFilePath) {
+				await this._closeCommandTestLogFile(
+					previousSession,
+					stoppedAt,
+				);
+			}
+
+			const stoppedLog = previousSession.logFileName
+				? {
+						logFileName: previousSession.logFileName,
+						logUrl: `/command-monitor-logs/${previousSession.logFileName}`,
+					}
+				: null;
+
 			this.commandTestSession = {
 				active: false,
 				nodeId: null,
 				startedAt: null,
+				expectedIntervalMs: null,
+				tolerancePercent: 10,
+				lastIncomingAt: null,
+				logFileName: null,
+				logFilePath: null,
 			};
 
 			const response = {
 				type: "COMMAND_TEST_STOPPED",
-				timestamp: new Date().toISOString(),
+				data: stoppedLog,
+				timestamp: stoppedAt,
 			};
 
 			this.sendResponse(client, requestId, response);
@@ -1347,10 +1610,29 @@ export class ZWaveControllerWebsocket extends Plugin {
 		}
 	}
 
+	_getPublicCommandTestSession() {
+		const session = this.commandTestSession;
+		if (!session.active) {
+			return { active: false };
+		}
+
+		return {
+			active: true,
+			nodeId: session.nodeId,
+			startedAt: session.startedAt,
+			expectedIntervalMs: session.expectedIntervalMs,
+			tolerancePercent: session.tolerancePercent,
+			logFileName: session.logFileName,
+			logUrl: session.logFileName
+				? `/command-monitor-logs/${session.logFileName}`
+				: null,
+		};
+	}
+
 	async handleGetCommandTestStatus(client, requestId) {
 		this.sendResponse(client, requestId, {
 			type: "COMMAND_TEST_STATUS",
-			data: { ...this.commandTestSession },
+			data: this._getPublicCommandTestSession(),
 			timestamp: new Date().toISOString(),
 		});
 	}

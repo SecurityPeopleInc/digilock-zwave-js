@@ -1003,20 +1003,25 @@ export class ZWaveProvisioningClient extends EventEmitter {
 			waitForDriverReady: () => this.waitForDriverReady(),
 			forceManufacturerProprietarySupport: (node) =>
 				this._forceManufacturerProprietarySupport(node),
-			onCommandSent: (data) => this.reportCommandSent(data),
+			onCommandActivity: (data) =>
+				this.reportCommandActivity({ direction: "outgoing", ...data }),
 		});
 	}
 
 	/**
-	 * Emits a commandSent event for outgoing lock commands (used by command test monitoring).
+	 * Emits a commandActivity event for lock command monitoring (incoming and outgoing).
 	 * @param {Object} data
 	 */
-	reportCommandSent(data) {
-		this.emit("commandSent", {
-			direction: "outgoing",
+	reportCommandActivity(data) {
+		this.emit("commandActivity", {
 			...data,
 			timestamp: new Date().toISOString(),
 		});
+	}
+
+	/** @deprecated Use reportCommandActivity */
+	reportCommandSent(data) {
+		this.reportCommandActivity({ direction: "outgoing", ...data });
 	}
 
 	/**
@@ -1123,6 +1128,21 @@ export class ZWaveProvisioningClient extends EventEmitter {
 
 				this.emit("manufacturerProprietaryCommand", commandData);
 
+				this.reportCommandActivity({
+					direction: "incoming",
+					nodeId: node.id,
+					ccId: 0x91,
+					commandClass: "Manufacturer Proprietary",
+					manufacturerId: commandData.manufacturerId,
+					payloadHex: commandData.payload
+						? Buffer.from(commandData.payload).toString("hex")
+						: "",
+					payloadLength: commandData.payloadLength,
+					endpointIndex: commandData.endpointIndex,
+					success: true,
+					source: "node",
+				});
+
 				// @remind Answer node back (MAYBE REMOVE)
 				// Send response for manufacturer ID 0x015b
 				if (isManufacturerProprietary) {
@@ -1155,7 +1175,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 							const startTime = Date.now();
 							try {
 								await mpAPI.sendData(0x01fb, responsePayload);
-								this.reportCommandSent({
+								this.reportCommandActivity({
 									nodeId: node.id,
 									ccId: 0x91,
 									commandClass: "Manufacturer Proprietary",
@@ -1164,6 +1184,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 									success: true,
 									duration: Date.now() - startTime,
 									source: "auto_response",
+									direction: "outgoing",
 								});
 								console.log(
 									`[MP Handler] ✅ Response sent to node ${
@@ -1173,7 +1194,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 									)}`,
 								);
 							} catch (sendError) {
-								this.reportCommandSent({
+								this.reportCommandActivity({
 									nodeId: node.id,
 									ccId: 0x91,
 									commandClass: "Manufacturer Proprietary",
@@ -1183,6 +1204,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 									error: sendError.message,
 									duration: Date.now() - startTime,
 									source: "auto_response",
+									direction: "outgoing",
 								});
 								throw sendError;
 							}
@@ -1197,6 +1219,24 @@ export class ZWaveProvisioningClient extends EventEmitter {
 
 				return;
 			}
+
+			const payloadHex = command.payload
+				? Buffer.from(command.payload).toString("hex")
+				: "";
+
+			this.reportCommandActivity({
+				direction: "incoming",
+				nodeId: node.id,
+				ccId: command.ccId,
+				ccCommand: command.ccCommand,
+				commandClass:
+					command.constructor?.name ||
+					`CC 0x${command.ccId?.toString(16).padStart(2, "0")}`,
+				payloadHex,
+				endpointIndex: command.endpointIndex || 0,
+				success: true,
+				source: "node",
+			});
 
 			// Call the original handleCommand for all other commands
 			return originalHandleCommand(command);

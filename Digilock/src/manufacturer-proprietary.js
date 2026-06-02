@@ -94,8 +94,8 @@ export function getManufacturerProprietaryAPI(
  * @param {Object} context - Context object with driver, driverReady, waitForDriverReady, and forceManufacturerProprietarySupport
  * @returns {Object} Object containing sendManufacturerProprietaryRandom and sendManufacturerProprietaryCustom functions
  */
-function reportCommandSent(context, data) {
-	context.onCommandSent?.(data);
+function reportCommandActivity(context, data) {
+	context.onCommandActivity?.(data);
 }
 
 export function createManufacturerProprietarySender(context) {
@@ -290,7 +290,7 @@ export function createManufacturerProprietarySender(context) {
 						console.log(
 							`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
 						);
-						reportCommandSent(context, {
+						reportCommandActivity(context, {
 							nodeId,
 							ccId: 0x91,
 							commandClass: "Manufacturer Proprietary",
@@ -313,7 +313,7 @@ export function createManufacturerProprietarySender(context) {
 						console.log(
 							`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
 						);
-						reportCommandSent(context, {
+						reportCommandActivity(context, {
 							nodeId,
 							ccId: 0x91,
 							commandClass: "Manufacturer Proprietary",
@@ -560,7 +560,7 @@ export function createManufacturerProprietarySender(context) {
 					console.log(
 						`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
 					);
-					reportCommandSent(context, {
+					reportCommandActivity(context, {
 						nodeId,
 						ccId: 0x91,
 						commandClass: "Manufacturer Proprietary",
@@ -582,7 +582,7 @@ export function createManufacturerProprietarySender(context) {
 					console.log(
 						`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
 					);
-					reportCommandSent(context, {
+					reportCommandActivity(context, {
 						nodeId,
 						ccId: 0x91,
 						commandClass: "Manufacturer Proprietary",

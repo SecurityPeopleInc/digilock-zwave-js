@@ -98,7 +98,18 @@ const LOG_LEVEL = process.env.ZWAVE_LOG_LEVEL || "silly";
 app.use(cors());
 app.use(express.json());
 const publicDir = join(__dirname, "public");
+const commandMonitorLogDir =
+	process.env.COMMAND_MONITOR_LOG_DIR ||
+	join(__dirname, "..", "store", "command-monitor-logs");
 app.use(express.static(publicDir));
+app.use(
+	"/command-monitor-logs",
+	express.static(commandMonitorLogDir, {
+		setHeaders: (res) => {
+			res.setHeader("Content-Type", "application/x-ndjson");
+		},
+	}),
+);
 // Ensure GET / serves the frontend (avoids "Cannot GET /" when static root is wrong e.g. in bundle)
 app.get("/", (req, res) => {
 	res.sendFile(join(publicDir, "index.html"));
@@ -185,6 +196,7 @@ websocketPlugin = plugin.apply(null, {
 	securityKeysLongRange,
 	cacheDir: CACHE_DIR,
 	logLevel: LOG_LEVEL,
+	commandMonitorLogDir,
 });
 
 process.on("SIGINT", async () => {
