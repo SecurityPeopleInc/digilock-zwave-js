@@ -3,6 +3,7 @@ import cors from "cors";
 import { ZWaveProvisioningClient } from "./zwave-client.js";
 import { ZWaveControllerWebsocket } from "./plugins/ZWaveControllerWebsocket.js";
 import { FloorPlanStore } from "./floor-plan-store.js";
+import { NodeMetadataStore } from "./node-metadata-store.js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
@@ -106,7 +107,12 @@ const floorPlanDataDir =
 	process.env.FLOOR_PLAN_DATA_DIR ||
 	join(__dirname, "..", "store", "floor-plans");
 const floorPlanStore = new FloorPlanStore(floorPlanDataDir);
+const nodeMetadataDataDir =
+	process.env.NODE_METADATA_DIR ||
+	join(__dirname, "..", "store", "node-metadata");
+const nodeMetadataStore = new NodeMetadataStore(nodeMetadataDataDir);
 await floorPlanStore.init();
+await nodeMetadataStore.init();
 
 app.use(express.static(publicDir));
 app.use("/floor-plan-assets", express.static(join(floorPlanDataDir, "assets")));
@@ -156,6 +162,7 @@ async function initializeDriver(port) {
 		securityKeys: securityKeys,
 		securityKeysLongRange: securityKeysLongRange,
 		deviceConfigPriorityDir: "./store/device-configs",
+		nodeMetadataStore,
 	});
 
 	try {
@@ -206,6 +213,7 @@ websocketPlugin = plugin.apply(null, {
 	logLevel: LOG_LEVEL,
 	commandMonitorLogDir,
 	floorPlanStore,
+	nodeMetadataStore,
 });
 
 process.on("SIGINT", async () => {

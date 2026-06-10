@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
-const DEFAULT_LAYOUT = { maps: [], activeMapId: null };
+const DEFAULT_LAYOUT = { maps: [], activeMapId: null, nodeColors: {} };
 
 /**
  * Persists floor plan layout and uploaded map assets on the server.
@@ -26,6 +26,10 @@ export class FloorPlanStore {
 			return {
 				maps: Array.isArray(data.maps) ? data.maps : [],
 				activeMapId: data.activeMapId ?? null,
+				nodeColors:
+					data.nodeColors && typeof data.nodeColors === "object"
+						? data.nodeColors
+						: {},
 				updatedAt: data.updatedAt ?? null,
 			};
 		} catch {
@@ -37,6 +41,10 @@ export class FloorPlanStore {
 		const payload = {
 			maps: Array.isArray(layout.maps) ? layout.maps : [],
 			activeMapId: layout.activeMapId ?? null,
+			nodeColors:
+				layout.nodeColors && typeof layout.nodeColors === "object"
+					? layout.nodeColors
+					: {},
 			updatedAt: new Date().toISOString(),
 		};
 		await writeFile(

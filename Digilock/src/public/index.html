@@ -171,6 +171,11 @@
         padding: var(--spacing-xl);
       }
 
+      .container:has(#section-command-monitor.active) {
+        max-width: 100%;
+        padding: var(--spacing-lg);
+      }
+
       /* Section Containers */
       .section-container {
         display: none;
@@ -1061,6 +1066,14 @@
         margin-top: var(--spacing-xl);
       }
 
+      .floor-plan-card--wide {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+        padding: var(--spacing-xl);
+        box-shadow: var(--shadow-md);
+      }
+
       .floor-plan-toolbar {
         display: flex;
         flex-wrap: wrap;
@@ -1094,9 +1107,9 @@
 
       .floor-plan-workspace {
         display: grid;
-        grid-template-columns: 220px 1fr;
+        grid-template-columns: 260px 1fr;
         gap: var(--spacing-lg);
-        min-height: 480px;
+        min-height: calc(100vh - 300px);
       }
 
       .floor-plan-sidebar {
@@ -1107,6 +1120,8 @@
         background: var(--bg-tertiary);
         border: 1px solid var(--border-primary);
         border-radius: var(--radius-md);
+        max-height: calc(100vh - 280px);
+        overflow-y: auto;
       }
 
       .floor-plan-sidebar h4 {
@@ -1121,11 +1136,34 @@
         gap: var(--spacing-sm);
         padding: var(--spacing-sm) var(--spacing-md);
         border: 1px solid var(--border-secondary);
+        border-left-width: 5px;
         border-radius: var(--radius-sm);
-        background: var(--bg-secondary);
+        background: var(--bg-elevated);
+        color: var(--text-primary);
         cursor: pointer;
         font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
         text-align: left;
+        width: 100%;
+      }
+
+      .floor-plan-palette-item .floor-plan-palette-label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .floor-plan-palette-item .floor-plan-color-input {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: 2px solid #fff;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        flex-shrink: 0;
+        background: transparent;
       }
 
       .floor-plan-palette-item:hover {
@@ -1150,11 +1188,11 @@
 
       .floor-plan-canvas-wrap {
         position: relative;
-        min-height: 480px;
-        background: var(--bg-tertiary);
+        min-height: calc(100vh - 320px);
+        background: #0d0d0d;
         border: 1px solid var(--border-primary);
         border-radius: var(--radius-md);
-        overflow: hidden;
+        overflow: auto;
       }
 
       .floor-plan-canvas-wrap.placing {
@@ -1167,7 +1205,7 @@
         align-items: center;
         justify-content: center;
         height: 100%;
-        min-height: 480px;
+        min-height: calc(100vh - 320px);
         color: var(--text-secondary);
         font-size: var(--font-size-sm);
         gap: var(--spacing-md);
@@ -1197,19 +1235,27 @@
       .floor-plan-marker {
         position: absolute;
         transform: translate(-50%, -50%);
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
-        border: 2px solid #fff;
+        border: 3px solid #fff;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: var(--font-weight-bold);
+        color: #fff;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
         cursor: grab;
         z-index: 2;
-        box-shadow: var(--shadow-md);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
         user-select: none;
+      }
+
+      .floor-plan-marker.selected {
+        outline: 3px solid #fff;
+        outline-offset: 3px;
+        z-index: 4;
       }
 
       .floor-plan-marker.controller {
@@ -1256,8 +1302,52 @@
         display: flex;
         flex-direction: column;
         gap: var(--spacing-xs);
-        max-height: 240px;
+        max-height: 280px;
         overflow-y: auto;
+      }
+
+      .floor-plan-selection-panel {
+        padding: var(--spacing-md);
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-secondary);
+        border-radius: var(--radius-sm);
+      }
+
+      .floor-plan-selection-panel[hidden] {
+        display: none;
+      }
+
+      .node-commissioning-grid {
+        display: grid;
+        gap: var(--spacing-sm);
+        margin-top: var(--spacing-md);
+      }
+
+      .node-commissioning-grid label {
+        display: block;
+        font-size: var(--font-size-xs);
+        color: var(--text-secondary);
+        margin-bottom: var(--spacing-xs);
+      }
+
+      .node-commissioning-grid input {
+        width: 100%;
+        padding: var(--spacing-sm);
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-sm);
+        color: var(--text-primary);
+        font-size: var(--font-size-sm);
+      }
+
+      .node-meta-row {
+        margin: var(--spacing-xs) 0;
+        font-size: var(--font-size-sm);
+      }
+
+      .node-meta-row strong {
+        color: var(--text-secondary);
+        font-weight: var(--font-weight-medium);
       }
 
       @media (max-width: 900px) {
@@ -1578,7 +1668,7 @@
       >
         <div class="header">
           <h1 id="nodes-heading">Connected Nodes</h1>
-          <p>View all Z-Wave nodes connected to your network</p>
+          <p>View all Z-Wave nodes connected to your network, including commissioning DSK, name, and location.</p>
         </div>
 
         <div class="card">
@@ -1918,68 +2008,83 @@
               <canvas id="cmdTestIntervalChart" aria-label="Command interval chart"></canvas>
             </div>
           </div>
+        </div>
 
-          <div class="card floor-plan-card">
-            <h3 style="margin-bottom: var(--spacing-sm)">Floor Plan</h3>
-            <p
-              style="
-                margin: 0 0 var(--spacing-lg);
-                font-size: var(--font-size-sm);
-                color: var(--text-secondary);
-              "
-            >
-              Upload floor plan images or PDFs, place the controller (node 1) and
-              lock nodes on the map. Command activity triggers a pulse animation.
-              Add multiple floors as needed — layout syncs across all clients.
-            </p>
+        <div class="floor-plan-card floor-plan-card--wide">
+          <h3 style="margin-bottom: var(--spacing-sm)">Floor Plan</h3>
+          <p
+            style="
+              margin: 0 0 var(--spacing-lg);
+              font-size: var(--font-size-sm);
+              color: var(--text-secondary);
+            "
+          >
+            Upload floor plan images or PDFs, place the controller (node 1) and
+            lock nodes on the map. Click a marker to select and remove it if
+            misplaced. Command activity triggers a pulse animation. Layout syncs
+            across all clients.
+          </p>
 
-            <div class="floor-plan-toolbar">
-              <div class="floor-plan-tabs" id="floorPlanTabs"></div>
-              <button class="btn btn-secondary" type="button" onclick="addFloorPlanMap()">
-                + Add floor
+          <div class="floor-plan-toolbar">
+            <div class="floor-plan-tabs" id="floorPlanTabs"></div>
+            <button class="btn btn-secondary" type="button" onclick="addFloorPlanMap()">
+              + Add floor
+            </button>
+          </div>
+
+          <div class="floor-plan-workspace">
+            <div class="floor-plan-sidebar">
+              <h4>Upload map</h4>
+              <input
+                type="file"
+                id="floorPlanFileInput"
+                accept="image/*,.pdf,application/pdf"
+                onchange="handleFloorPlanFileSelected(event)"
+              />
+              <button
+                class="btn btn-secondary"
+                type="button"
+                onclick="deleteActiveFloorPlanMap()"
+              >
+                Delete this floor
               </button>
-            </div>
 
-            <div class="floor-plan-workspace">
-              <div class="floor-plan-sidebar">
-                <h4>Upload map</h4>
-                <input
-                  type="file"
-                  id="floorPlanFileInput"
-                  accept="image/*,.pdf,application/pdf"
-                  onchange="handleFloorPlanFileSelected(event)"
-                />
+              <div class="floor-plan-selection-panel" id="floorPlanSelectionPanel" hidden>
+                <h4 style="margin-bottom: var(--spacing-sm)">Selected marker</h4>
+                <p id="floorPlanSelectionLabel" style="font-size: var(--font-size-sm); margin-bottom: var(--spacing-md);"></p>
                 <button
-                  class="btn btn-secondary"
+                  class="btn btn-danger"
                   type="button"
-                  onclick="deleteActiveFloorPlanMap()"
+                  onclick="removeSelectedFloorPlanMarker()"
+                  style="width: 100%"
                 >
-                  Delete this floor
+                  Remove from map
                 </button>
-
-                <h4>Place on map</h4>
-                <p class="floor-plan-placement-hint" id="floorPlanPlacementHint">
-                  Select an item, then click the map to place it.
-                </p>
-                <button
-                  type="button"
-                  class="floor-plan-palette-item controller"
-                  id="floorPlanControllerBtn"
-                  onclick="selectFloorPlanPlacement('controller')"
-                >
-                  <span
-                    class="floor-plan-palette-swatch"
-                    style="background: var(--status-warning)"
-                  ></span>
-                  Controller (Node 1)
-                </button>
-                <div class="floor-plan-node-list" id="floorPlanNodePalette"></div>
               </div>
 
-              <div class="floor-plan-canvas-wrap" id="floorPlanCanvasWrap">
-                <div class="floor-plan-empty" id="floorPlanEmpty">
-                  Add a floor and upload a map image or PDF to get started.
-                </div>
+              <h4>Place on map</h4>
+              <p class="floor-plan-placement-hint" id="floorPlanPlacementHint">
+                Select an item, then click the map to place it.
+              </p>
+              <button
+                type="button"
+                class="floor-plan-palette-item controller"
+                id="floorPlanControllerBtn"
+                onclick="selectFloorPlanPlacement('controller')"
+                style="border-left-color: var(--status-warning)"
+              >
+                <span
+                  class="floor-plan-palette-swatch"
+                  style="background: var(--status-warning)"
+                ></span>
+                <span class="floor-plan-palette-label">Controller (Node 1)</span>
+              </button>
+              <div class="floor-plan-node-list" id="floorPlanNodePalette"></div>
+            </div>
+
+            <div class="floor-plan-canvas-wrap" id="floorPlanCanvasWrap">
+              <div class="floor-plan-empty" id="floorPlanEmpty">
+                Add a floor and upload a map image or PDF to get started.
               </div>
             </div>
           </div>
@@ -2017,28 +2122,26 @@
       let commandTestChart = null;
       let commandTestNodeColorMap = {};
       const COMMAND_TEST_NODE_PALETTE = [
-        "#3b82f6",
-        "#22c55e",
-        "#f97316",
-        "#a855f7",
-        "#ec4899",
-        "#14b8a6",
-        "#eab308",
-        "#ef4444",
-        "#06b6d4",
-        "#84cc16",
-        "#f43f5e",
-        "#8b5cf6",
-        "#0ea5e9",
-        "#d946ef",
-        "#10b981",
+        "#FF1744",
+        "#00E676",
+        "#2979FF",
+        "#FF9100",
+        "#D500F9",
+        "#00E5FF",
+        "#FFD600",
+        "#FF6D00",
+        "#76FF03",
+        "#651FFF",
+        "#F50057",
+        "#1DE9B6",
       ];
       const MAX_COMMAND_TEST_CHART_POINTS = 300;
 
       // Floor plan state
-      let floorPlanState = { maps: [], activeMapId: null };
+      let floorPlanState = { maps: [], activeMapId: null, nodeColors: {} };
       let floorPlanNetworkNodes = [];
       let floorPlanPlacementMode = null;
+      let floorPlanSelectedMarker = null;
       let floorPlanDragState = null;
       let floorPlanSaveTimer = null;
       let floorPlanIgnoreRemoteUntil = 0;
@@ -2226,6 +2329,10 @@
             if (message.data && Date.now() >= floorPlanIgnoreRemoteUntil) {
               applyFloorPlanState(message.data, true);
             }
+            break;
+
+          case "NODE_METADATA_UPDATED":
+            loadNodes();
             break;
 
           default:
@@ -2456,35 +2563,59 @@
 
         container.innerHTML = nodes
           .map(
-            (node) => `
+            (node) => {
+              const displayName =
+                node.commissioningName || node.name || `Node ${node.id}`;
+              const dsk = node.dsk || "";
+              const location =
+                node.commissioningLocation || node.location || "";
+              const safeName = escapeHtml(displayName).replace(/'/g, "\\'");
+              return `
         <div class="node-card">
           <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
-            <h3 style="margin: 0;">${node.name}</h3>
+            <h3 style="margin: 0;">${escapeHtml(displayName)}</h3>
             <button 
               class="btn btn-danger" 
-              onclick="removeNode(${node.id}, '${node.name}')"
+              onclick="removeNode(${node.id}, '${safeName}')"
               style="padding: var(--spacing-sm) var(--spacing-md); font-size: var(--font-size-sm);"
               title="Remove node from network">
               Remove
             </button>
           </div>
           <p><strong>Node ID:</strong> ${node.id}</p>
-          <p><strong>Status:</strong> ${node.status}</p>
-          <p><strong>Protocol:</strong> ${node.protocol || "Unknown"}</p>
-          ${
-            node.location
-              ? `<p><strong>Location:</strong> ${node.location}</p>`
-              : ""
-          }
+          <p><strong>Status:</strong> ${escapeHtml(node.status)}</p>
+          <p><strong>Protocol:</strong> ${escapeHtml(node.protocol || "Unknown")}</p>
+          <div class="node-meta-row"><strong>DSK:</strong> ${dsk ? escapeHtml(dsk) : '<span style="color: var(--text-tertiary)">Not recorded</span>'}</div>
+          <div class="node-meta-row"><strong>Name:</strong> ${node.commissioningName ? escapeHtml(node.commissioningName) : '<span style="color: var(--text-tertiary)">Not recorded</span>'}</div>
+          <div class="node-meta-row"><strong>Location:</strong> ${location ? escapeHtml(location) : '<span style="color: var(--text-tertiary)">Not recorded</span>'}</div>
           ${
             node.deviceConfig
-              ? `<p><strong>Device:</strong> ${
+              ? `<p><strong>Device:</strong> ${escapeHtml(
                   node.deviceConfig.label || "Unknown"
-                }</p>`
+                )}</p>`
               : ""
           }
+          <details style="margin-top: var(--spacing-md);">
+            <summary style="cursor: pointer; color: var(--text-secondary); font-size: var(--font-size-sm);">Edit commissioning info</summary>
+            <div class="node-commissioning-grid">
+              <div>
+                <label for="nodeDsk-${node.id}">DSK</label>
+                <input type="text" id="nodeDsk-${node.id}" value="${escapeHtml(dsk)}" placeholder="00000-00000-..." />
+              </div>
+              <div>
+                <label for="nodeName-${node.id}">Name</label>
+                <input type="text" id="nodeName-${node.id}" value="${escapeHtml(node.commissioningName || node.name || "")}" placeholder="Device name" />
+              </div>
+              <div>
+                <label for="nodeLocation-${node.id}">Location</label>
+                <input type="text" id="nodeLocation-${node.id}" value="${escapeHtml(location)}" placeholder="Device location" />
+              </div>
+              <button class="btn btn-secondary" type="button" onclick="saveNodeMetadata(${node.id})">Save info</button>
+            </div>
+          </details>
         </div>
-      `
+      `;
+            }
           )
           .join("");
         
@@ -2494,6 +2625,28 @@
         }
         floorPlanNetworkNodes = nodes;
         renderFloorPlanNodePalette();
+      }
+
+      async function saveNodeMetadata(nodeId) {
+        const dsk = document.getElementById(`nodeDsk-${nodeId}`)?.value?.trim() || "";
+        const name = document.getElementById(`nodeName-${nodeId}`)?.value?.trim() || "";
+        const location =
+          document.getElementById(`nodeLocation-${nodeId}`)?.value?.trim() || "";
+
+        try {
+          const result = await sendWebSocketMessage("SAVE_NODE_METADATA", {
+            nodeId,
+            dsk,
+            name,
+            location,
+          });
+          if (result.type === "NODE_METADATA_SAVED") {
+            showAlert(`Saved commissioning info for node ${nodeId}`, "success");
+            loadNodes();
+          }
+        } catch (error) {
+          showAlert("Failed to save node info: " + error.message, "error");
+        }
       }
 
       // Remove node function
@@ -3288,6 +3441,12 @@
 
       function getCommandTestNodeColor(nodeId) {
         const key = commandTestNodeKey(nodeId);
+        if (
+          floorPlanState?.nodeColors &&
+          floorPlanState.nodeColors[key]
+        ) {
+          return floorPlanState.nodeColors[key];
+        }
         if (commandTestNodeColorMap[key]) {
           return commandTestNodeColorMap[key];
         }
@@ -3296,21 +3455,44 @@
         let color;
         if (
           Number.isSafeInteger(numericId) &&
+          numericId >= 2 &&
+          numericId <= COMMAND_TEST_NODE_PALETTE.length + 1
+        ) {
+          color = COMMAND_TEST_NODE_PALETTE[(numericId - 2) % COMMAND_TEST_NODE_PALETTE.length];
+        } else if (
+          Number.isSafeInteger(numericId) &&
           numericId >= 1 &&
           numericId <= COMMAND_TEST_NODE_PALETTE.length
         ) {
           color = COMMAND_TEST_NODE_PALETTE[numericId - 1];
         } else {
           const hue = Math.round(hashStringToFraction(key) * 360);
-          const sat =
-            58 + Math.round(hashStringToFraction(`${key}:s`) * 22);
-          const light =
-            52 + Math.round(hashStringToFraction(`${key}:l`) * 14);
-          color = `hsl(${hue}, ${sat}%, ${light}%)`;
+          color = `hsl(${hue}, 90%, 55%)`;
         }
 
         commandTestNodeColorMap[key] = color;
         return color;
+      }
+
+      function setNodeDisplayColor(nodeId, color) {
+        if (!floorPlanState.nodeColors) {
+          floorPlanState.nodeColors = {};
+        }
+        floorPlanState.nodeColors[commandTestNodeKey(nodeId)] = color;
+        commandTestNodeColorMap[commandTestNodeKey(nodeId)] = color;
+        if (commandTestChart) {
+          const dataset = getCommandTestNodeDatasets(commandTestChart).find(
+            (item) => commandTestNodeIdsEqual(item.nodeId, nodeId)
+          );
+          if (dataset) {
+            dataset.borderColor = color;
+            dataset.backgroundColor = commandTestColorWithAlpha(color, 0.12);
+            dataset.pointBackgroundColor = color;
+            commandTestChart.update("none");
+          }
+        }
+        renderFloorPlanUI();
+        scheduleFloorPlanSave();
       }
 
       function getCommandTestExpectedDataset(chart) {
@@ -3887,6 +4069,10 @@
         floorPlanState = {
           maps: Array.isArray(data?.maps) ? data.maps : [],
           activeMapId: data?.activeMapId ?? null,
+          nodeColors:
+            data?.nodeColors && typeof data.nodeColors === "object"
+              ? data.nodeColors
+              : {},
         };
         if (
           floorPlanState.maps.length &&
@@ -3894,6 +4080,7 @@
         ) {
           floorPlanState.activeMapId = floorPlanState.maps[0].id;
         }
+        commandTestNodeColorMap = {};
         renderFloorPlanUI();
         if (!fromRemote) {
           scheduleFloorPlanSave();
@@ -3924,6 +4111,7 @@
           await sendWebSocketMessage("SAVE_FLOOR_PLANS", {
             maps: floorPlanState.maps,
             activeMapId: floorPlanState.activeMapId,
+            nodeColors: floorPlanState.nodeColors || {},
           });
         } catch (error) {
           console.warn("Failed to save floor plans:", error.message);
@@ -3964,11 +4152,13 @@
       function selectFloorPlanMap(mapId) {
         floorPlanState.activeMapId = mapId;
         floorPlanPlacementMode = null;
+        floorPlanSelectedMarker = null;
         renderFloorPlanUI();
         scheduleFloorPlanSave();
       }
 
       function selectFloorPlanPlacement(mode, nodeId) {
+        floorPlanSelectedMarker = null;
         if (mode === "controller") {
           floorPlanPlacementMode = { type: "controller" };
         } else {
@@ -3978,6 +4168,56 @@
         renderFloorPlanPaletteSelection();
         const wrap = document.getElementById("floorPlanCanvasWrap");
         if (wrap) wrap.classList.add("placing");
+      }
+
+      function selectFloorPlanMarker(kind, nodeId) {
+        floorPlanPlacementMode = null;
+        floorPlanSelectedMarker = { kind, nodeId: String(nodeId) };
+        updateFloorPlanSelectionPanel();
+        renderFloorPlanCanvas();
+        renderFloorPlanPaletteSelection();
+      }
+
+      function updateFloorPlanSelectionPanel() {
+        const panel = document.getElementById("floorPlanSelectionPanel");
+        const label = document.getElementById("floorPlanSelectionLabel");
+        if (!panel || !label) return;
+
+        if (!floorPlanSelectedMarker) {
+          panel.hidden = true;
+          return;
+        }
+
+        panel.hidden = false;
+        if (floorPlanSelectedMarker.kind === "controller") {
+          label.textContent = "Controller (Node 1)";
+        } else {
+          const node = floorPlanNetworkNodes.find(
+            (n) => String(n.id) === floorPlanSelectedMarker.nodeId
+          );
+          const name = node?.commissioningName || node?.name || "";
+          label.textContent = name
+            ? `Node ${floorPlanSelectedMarker.nodeId} · ${name}`
+            : `Node ${floorPlanSelectedMarker.nodeId}`;
+        }
+      }
+
+      function removeSelectedFloorPlanMarker() {
+        if (!floorPlanSelectedMarker) return;
+        const map = getActiveFloorPlanMap();
+        if (!map) return;
+
+        if (floorPlanSelectedMarker.kind === "controller") {
+          map.controller = null;
+        } else {
+          if (map.nodes) {
+            delete map.nodes[floorPlanSelectedMarker.nodeId];
+          }
+        }
+
+        floorPlanSelectedMarker = null;
+        renderFloorPlanUI();
+        scheduleFloorPlanSave();
       }
 
       function updateFloorPlanPlacementHint() {
@@ -4008,19 +4248,31 @@
         container.innerHTML = nodes
           .map((node) => {
             const color = getCommandTestNodeColor(node.id);
+            const label =
+              node.commissioningName || node.name || `Node ${node.id}`;
             const selected =
               floorPlanPlacementMode?.type === "node" &&
               String(floorPlanPlacementMode.nodeId) === String(node.id)
                 ? " selected"
                 : "";
+            const onMap =
+              getActiveFloorPlanMap()?.nodes?.[String(node.id)] != null;
             return `
               <button
                 type="button"
                 class="floor-plan-palette-item${selected}"
+                style="border-left-color: ${color}"
                 onclick="selectFloorPlanPlacement('node', ${node.id})"
               >
-                <span class="floor-plan-palette-swatch" style="background: ${color}"></span>
-                Node ${node.id}${node.name ? ` · ${escapeHtml(node.name)}` : ""}
+                <input
+                  type="color"
+                  class="floor-plan-color-input"
+                  value="${color}"
+                  title="Change node color"
+                  onclick="event.stopPropagation()"
+                  onchange="setNodeDisplayColor(${node.id}, this.value)"
+                />
+                <span class="floor-plan-palette-label">${escapeHtml(label)}${onMap ? " · on map" : ""}</span>
               </button>
             `;
           })
@@ -4110,17 +4362,22 @@
                 .map((marker) => {
                   const isController = marker.kind === "controller";
                   const color = isController
-                    ? "var(--status-warning)"
+                    ? "#ca8a04"
                     : getCommandTestNodeColor(marker.nodeId);
                   const label = isController ? "C1" : String(marker.nodeId);
+                  const isSelected =
+                    floorPlanSelectedMarker &&
+                    floorPlanSelectedMarker.kind === marker.kind &&
+                    String(floorPlanSelectedMarker.nodeId) ===
+                      String(marker.nodeId);
                   return `
                     <div
-                      class="floor-plan-marker${isController ? " controller" : ""}"
+                      class="floor-plan-marker${isController ? " controller" : ""}${isSelected ? " selected" : ""}"
                       data-node-id="${escapeHtml(String(marker.nodeId))}"
                       data-kind="${marker.kind}"
-                      style="left: ${marker.x * 100}%; top: ${marker.y * 100}%; background: ${isController ? "#1e3a5f" : color};"
+                      style="left: ${marker.x * 100}%; top: ${marker.y * 100}%; background: ${isController ? "#ca8a04" : color};"
                       onmousedown="startFloorPlanMarkerDrag(event, '${marker.kind}', '${escapeHtml(String(marker.nodeId))}')"
-                      title="${isController ? "Controller (Node 1)" : `Node ${marker.nodeId}`}"
+                      title="${isController ? "Controller (Node 1) — click to select" : `Node ${marker.nodeId} — click to select`}"
                     >${escapeHtml(label)}</div>
                   `;
                 })
@@ -4140,6 +4397,7 @@
         renderFloorPlanCanvas();
         renderFloorPlanPaletteSelection();
         updateFloorPlanPlacementHint();
+        updateFloorPlanSelectionPanel();
       }
 
       function getFloorPlanNormalizedCoords(event) {
@@ -4157,8 +4415,14 @@
 
       function handleFloorPlanMapClick(event) {
         if (floorPlanDragState?.moved) return;
-        if (!floorPlanPlacementMode) return;
         if (event.target.closest(".floor-plan-marker")) return;
+
+        if (!floorPlanPlacementMode) {
+          floorPlanSelectedMarker = null;
+          updateFloorPlanSelectionPanel();
+          renderFloorPlanCanvas();
+          return;
+        }
 
         const coords = getFloorPlanNormalizedCoords(event);
         if (!coords) return;
@@ -4225,6 +4489,11 @@
           document.removeEventListener("mouseup", onUp);
           if (floorPlanDragState?.moved) {
             scheduleFloorPlanSave();
+          } else if (floorPlanDragState) {
+            selectFloorPlanMarker(
+              floorPlanDragState.kind,
+              floorPlanDragState.nodeId
+            );
           }
           floorPlanDragState = null;
         };
@@ -4345,6 +4614,9 @@
       window.selectFloorPlanMap = selectFloorPlanMap;
       window.selectFloorPlanPlacement = selectFloorPlanPlacement;
       window.handleFloorPlanFileSelected = handleFloorPlanFileSelected;
+      window.removeSelectedFloorPlanMarker = removeSelectedFloorPlanMarker;
+      window.setNodeDisplayColor = setNodeDisplayColor;
+      window.saveNodeMetadata = saveNodeMetadata;
 
       // Command Modal Functions
       function openCommandModal(nodeId, ccId, ccName, isManufacturerProprietary) {

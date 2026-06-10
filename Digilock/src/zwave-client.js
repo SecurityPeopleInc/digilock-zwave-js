@@ -79,6 +79,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				securityKeysLongRange: securityKeysLongRangeBuffers,
 			}),
 		};
+		this.nodeMetadataStore = options.nodeMetadataStore ?? null;
 	}
 
 	async connect() {
@@ -418,10 +419,21 @@ export class ZWaveProvisioningClient extends EventEmitter {
 		});
 
 		// Set up handlers for node events
-		controller.on("node added", (node) => {
+		controller.on("node added", async (node) => {
 			console.log(`Node ${node.id} added`);
 			this._forceManufacturerProprietarySupport(node);
 			this.setupManufacturerProprietaryCommandHandler(node);
+
+			if (this.nodeMetadataStore) {
+				try {
+					await this.nodeMetadataStore.linkFromProvisioning(this, node);
+				} catch (error) {
+					console.warn(
+						`[Metadata] Failed to link commissioning info for node ${node.id}:`,
+						error.message,
+					);
+				}
+			}
 
 			// Unprovision all Smart Start entries for this node
 			this._unprovisionNodeEntries(node);
@@ -947,7 +959,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 
 		const nodes = [];
 		for (const node of this.driver.controller.nodes.values()) {
-			nodes.push({
+			const nodeInfo = {
 				id: node.id,
 				name: node.name || `Node ${node.id}`,
 				status: NodeStatus[node.status] || "Unknown",
@@ -958,9 +970,58 @@ export class ZWaveProvisioningClient extends EventEmitter {
 							description: node.deviceConfig.description,
 						}
 					: null,
-			});
+			};
+			nodes.push(nodeInfo);
 		}
 		return nodes;
+	}
+
+	/**
+	 * Enrich node list with persisted commissioning metadata.
+	 * @param {Array} nodes
+	 * @returns {Promise<Array>}
+	 */
+	async enrichNodesWithMetadata(nodes) {
+		if (!Array.isArray(nodes)) {
+			return nodes;
+		}
+
+		return Promise.all(
+			nodes.map(async (node) => {
+				let metadata = this.nodeMetadataStore
+					? await this.nodeMetadataStore.getForNode(node.id)
+					: null;
+
+				if (
+					!metadata &&
+					this.nodeMetadataStore &&
+					this.driverReady &&
+					this.driver
+				) {
+					const zwaveNode = this.driver.controller.nodes.get(node.id);
+					if (zwaveNode) {
+						await this.nodeMetadataStore.linkFromProvisioning(
+							this,
+							zwaveNode,
+						);
+						metadata = await this.nodeMetadataStore.getForNode(node.id);
+					}
+				}
+
+				if (!metadata) return node;
+				return {
+					...node,
+					commissioningName: metadata.name || "",
+					commissioningLocation: metadata.location || "",
+					dsk: metadata.dsk || "",
+					name:
+						metadata.name ||
+						node.name ||
+						`Node ${node.id}`,
+					location: metadata.location || node.location || "",
+				};
+			}),
+		);
 	}
 
 	/**

@@ -29,6 +29,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 		this.commandTestSession = this._createEmptyCommandTestSession();
 		this.commandMonitorLogDir = null;
 		this.floorPlanStore = null;
+		this.nodeMetadataStore = null;
 	}
 
 	/**
@@ -166,6 +167,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 		this.commandMonitorLogDir =
 			options.commandMonitorLogDir ?? "./store/command-monitor-logs";
 		this.floorPlanStore = options.floorPlanStore ?? null;
+		this.nodeMetadataStore = options.nodeMetadataStore ?? null;
 
 		this.wss = new WebSocketServer({ server: options.server });
 
@@ -696,6 +698,10 @@ export class ZWaveControllerWebsocket extends Plugin {
 					await this.handleUploadFloorPlanAsset(client, data, requestId);
 					break;
 
+				case "SAVE_NODE_METADATA":
+					await this.handleSaveNodeMetadata(client, data, requestId);
+					break;
+
 				case "PING":
 					this.sendResponse(client, requestId, {
 						type: "PONG",
@@ -846,6 +852,15 @@ export class ZWaveControllerWebsocket extends Plugin {
 			};
 
 			await this.zwaveClient.provisionSmartStartNode(provisioningEntry);
+
+			if (this.nodeMetadataStore) {
+				await this.nodeMetadataStore.recordProvisioningEntry({
+					dsk: provisioningEntry.dsk,
+					name: provisioningEntry.name,
+					location: provisioningEntry.location,
+				});
+			}
+
 			this.sendResponse(client, requestId, {
 				type: "PROVISIONING_ENTRY_ADDED",
 				data: provisioningEntry,
@@ -944,7 +959,9 @@ export class ZWaveControllerWebsocket extends Plugin {
 				});
 				return;
 			}
-			const nodes = this.zwaveClient.getNodes();
+			const nodes = await this.zwaveClient.enrichNodesWithMetadata(
+				this.zwaveClient.getNodes(),
+			);
 			this.sendResponse(client, requestId, {
 				type: "NODES",
 				data: nodes,
@@ -1758,6 +1775,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 			const saved = await this.floorPlanStore.save({
 				maps: data.maps,
 				activeMapId: data.activeMapId,
+				nodeColors: data.nodeColors,
 			});
 
 			const response = {
@@ -1825,6 +1843,54 @@ export class ZWaveControllerWebsocket extends Plugin {
 			this.sendResponse(client, requestId, {
 				type: "ERROR",
 				message: error.message || "Failed to upload floor plan asset",
+			});
+		}
+	}
+
+	async handleSaveNodeMetadata(client, data, requestId) {
+		try {
+			if (!this.nodeMetadataStore) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "Node metadata storage is not configured",
+				});
+				return;
+			}
+
+			const nodeId = parseInt(data.nodeId, 10);
+			if (!Number.isInteger(nodeId) || nodeId < 1) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "nodeId must be a positive integer",
+				});
+				return;
+			}
+
+			const saved = await this.nodeMetadataStore.saveForNode(nodeId, {
+				dsk: data.dsk,
+				name: data.name,
+				location: data.location,
+			});
+
+			const response = {
+				type: "NODE_METADATA_SAVED",
+				data: {
+					nodeId,
+					metadata: saved.byNodeId[String(nodeId)] || null,
+				},
+				timestamp: new Date().toISOString(),
+			};
+
+			this.sendResponse(client, requestId, response);
+			this.broadcast({
+				type: "NODE_METADATA_UPDATED",
+				data: response.data,
+				timestamp: response.timestamp,
+			});
+		} catch (error) {
+			this.sendResponse(client, requestId, {
+				type: "ERROR",
+				message: error.message || "Failed to save node metadata",
 			});
 		}
 	}
