@@ -55,3 +55,4 @@ test/zwavejs_*.log
 Digilock/dist
 
 Digilock/store/cache/
+Digilock/store/command-monitor-logs
