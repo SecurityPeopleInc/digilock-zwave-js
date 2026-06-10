@@ -6,6 +6,7 @@
     <title>Digilock Z-Wave Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
       /* Design System - Dark Mode First */
       :root {
@@ -1055,6 +1056,216 @@
         font-size: var(--font-size-xs);
       }
 
+      /* Floor Plan */
+      .floor-plan-card {
+        margin-top: var(--spacing-xl);
+      }
+
+      .floor-plan-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-lg);
+      }
+
+      .floor-plan-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+        flex: 1;
+      }
+
+      .floor-plan-tab {
+        padding: var(--spacing-sm) var(--spacing-md);
+        border: 1px solid var(--border-secondary);
+        border-radius: var(--radius-sm);
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: var(--font-size-sm);
+      }
+
+      .floor-plan-tab.active {
+        border-color: var(--status-connected);
+        color: var(--text-primary);
+        background: var(--bg-elevated);
+      }
+
+      .floor-plan-workspace {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: var(--spacing-lg);
+        min-height: 480px;
+      }
+
+      .floor-plan-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md);
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-md);
+      }
+
+      .floor-plan-sidebar h4 {
+        font-size: var(--font-size-sm);
+        color: var(--text-secondary);
+        margin: 0;
+      }
+
+      .floor-plan-palette-item {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm) var(--spacing-md);
+        border: 1px solid var(--border-secondary);
+        border-radius: var(--radius-sm);
+        background: var(--bg-secondary);
+        cursor: pointer;
+        font-size: var(--font-size-sm);
+        text-align: left;
+      }
+
+      .floor-plan-palette-item:hover {
+        border-color: var(--text-tertiary);
+      }
+
+      .floor-plan-palette-item.selected {
+        border-color: var(--status-connected);
+        box-shadow: 0 0 0 1px var(--status-connected);
+      }
+
+      .floor-plan-palette-item.controller {
+        border-color: var(--status-warning);
+      }
+
+      .floor-plan-palette-swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .floor-plan-canvas-wrap {
+        position: relative;
+        min-height: 480px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+      }
+
+      .floor-plan-canvas-wrap.placing {
+        cursor: crosshair;
+      }
+
+      .floor-plan-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 480px;
+        color: var(--text-secondary);
+        font-size: var(--font-size-sm);
+        gap: var(--spacing-md);
+        padding: var(--spacing-xl);
+        text-align: center;
+      }
+
+      .floor-plan-map-inner {
+        position: relative;
+        width: 100%;
+        line-height: 0;
+      }
+
+      .floor-plan-map-inner img {
+        width: 100%;
+        height: auto;
+        display: block;
+        user-select: none;
+        pointer-events: none;
+      }
+
+      .floor-plan-markers {
+        position: absolute;
+        inset: 0;
+      }
+
+      .floor-plan-marker {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: var(--font-weight-bold);
+        cursor: grab;
+        z-index: 2;
+        box-shadow: var(--shadow-md);
+        user-select: none;
+      }
+
+      .floor-plan-marker.controller {
+        width: 44px;
+        height: 44px;
+        border-width: 3px;
+        border-color: var(--status-warning);
+        background: #1e3a5f;
+        color: #fff;
+        font-size: 10px;
+      }
+
+      .floor-plan-marker:active {
+        cursor: grabbing;
+        z-index: 3;
+      }
+
+      .floor-plan-marker.pulse {
+        animation: floorPlanPulse 0.7s ease-out;
+      }
+
+      @keyframes floorPlanPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.85);
+          transform: translate(-50%, -50%) scale(1);
+        }
+        40% {
+          box-shadow: 0 0 0 14px rgba(37, 99, 235, 0);
+          transform: translate(-50%, -50%) scale(1.3);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+
+      .floor-plan-placement-hint {
+        font-size: var(--font-size-xs);
+        color: var(--status-connected);
+        min-height: 1.2em;
+      }
+
+      .floor-plan-node-list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-xs);
+        max-height: 240px;
+        overflow-y: auto;
+      }
+
+      @media (max-width: 900px) {
+        .floor-plan-workspace {
+          grid-template-columns: 1fr;
+        }
+      }
+
       /* Responsive */
       @media (max-width: 768px) {
         .form-row {
@@ -1588,9 +1799,10 @@
         <div class="header">
           <h1 id="command-monitor-heading">Lock Command Monitor</h1>
           <p>
-            Monitor periodic lock traffic: set the expected interval and optionally
-            filter by node (leave blank for all nodes). Inter-arrival timing is
-            shown on a live chart and logged to a shared JSONL file on the server.
+            Monitor lock traffic: optionally set an expected interval and filter
+            by node. Inter-arrival timing is shown on a live chart. Use the floor
+            plan to place nodes and visualize command activity — layout is saved
+            on the server for all connected clients.
           </p>
         </div>
 
@@ -1618,14 +1830,13 @@
               />
             </div>
             <div class="form-group" style="margin-bottom: 0">
-              <label for="cmdTestIntervalSec">Expected interval (seconds)</label>
+              <label for="cmdTestIntervalSec">Expected interval (optional, seconds)</label>
               <input
                 type="number"
                 id="cmdTestIntervalSec"
                 min="0.1"
                 step="0.1"
-                placeholder="e.g. 10"
-                required
+                placeholder="Optional"
                 style="width: 140px"
               />
             </div>
@@ -1643,22 +1854,6 @@
               disabled
             >
               Stop Monitoring
-            </button>
-            <button
-              class="btn btn-secondary"
-              id="cmdTestClearBtn"
-              onclick="clearCommandTestLog()"
-              disabled
-              title="Available when monitoring is stopped"
-            >
-              Clear Log
-            </button>
-            <button
-              class="btn btn-secondary"
-              onclick="toggleCommandTestAutoScroll()"
-              id="cmdTestAutoScrollBtn"
-            >
-              Auto-scroll: ON
             </button>
           </div>
 
@@ -1724,15 +1919,67 @@
             </div>
           </div>
 
-          <div class="cmd-test-log-container">
-            <div class="ws-log-header">
-              <h3>Live Command Log</h3>
+          <div class="card floor-plan-card">
+            <h3 style="margin-bottom: var(--spacing-sm)">Floor Plan</h3>
+            <p
+              style="
+                margin: 0 0 var(--spacing-lg);
+                font-size: var(--font-size-sm);
+                color: var(--text-secondary);
+              "
+            >
+              Upload floor plan images or PDFs, place the controller (node 1) and
+              lock nodes on the map. Command activity triggers a pulse animation.
+              Add multiple floors as needed — layout syncs across all clients.
+            </p>
+
+            <div class="floor-plan-toolbar">
+              <div class="floor-plan-tabs" id="floorPlanTabs"></div>
+              <button class="btn btn-secondary" type="button" onclick="addFloorPlanMap()">
+                + Add floor
+              </button>
             </div>
-            <div class="cmd-test-log-messages" id="cmdTestLogMessages">
-              <div class="ws-log-empty">
-                Start monitoring to record all incoming and outgoing lock
-                commands. Interact with locks from the Commands tab or wait for
-                lock-initiated traffic while the session is active.
+
+            <div class="floor-plan-workspace">
+              <div class="floor-plan-sidebar">
+                <h4>Upload map</h4>
+                <input
+                  type="file"
+                  id="floorPlanFileInput"
+                  accept="image/*,.pdf,application/pdf"
+                  onchange="handleFloorPlanFileSelected(event)"
+                />
+                <button
+                  class="btn btn-secondary"
+                  type="button"
+                  onclick="deleteActiveFloorPlanMap()"
+                >
+                  Delete this floor
+                </button>
+
+                <h4>Place on map</h4>
+                <p class="floor-plan-placement-hint" id="floorPlanPlacementHint">
+                  Select an item, then click the map to place it.
+                </p>
+                <button
+                  type="button"
+                  class="floor-plan-palette-item controller"
+                  id="floorPlanControllerBtn"
+                  onclick="selectFloorPlanPlacement('controller')"
+                >
+                  <span
+                    class="floor-plan-palette-swatch"
+                    style="background: var(--status-warning)"
+                  ></span>
+                  Controller (Node 1)
+                </button>
+                <div class="floor-plan-node-list" id="floorPlanNodePalette"></div>
+              </div>
+
+              <div class="floor-plan-canvas-wrap" id="floorPlanCanvasWrap">
+                <div class="floor-plan-empty" id="floorPlanEmpty">
+                  Add a floor and upload a map image or PDF to get started.
+                </div>
               </div>
             </div>
           </div>
@@ -1758,8 +2005,6 @@
       let commandTestNodeFilter = null;
       let commandTestExpectedIntervalMs = null;
       let commandTestLogUrl = null;
-      let commandTestEntries = [];
-      let commandTestAutoScroll = true;
       let commandTestDurationInterval = null;
       let commandTestStats = {
         total: 0,
@@ -1788,8 +2033,15 @@
         "#d946ef",
         "#10b981",
       ];
-      const MAX_COMMAND_TEST_ENTRIES = 500;
       const MAX_COMMAND_TEST_CHART_POINTS = 300;
+
+      // Floor plan state
+      let floorPlanState = { maps: [], activeMapId: null };
+      let floorPlanNetworkNodes = [];
+      let floorPlanPlacementMode = null;
+      let floorPlanDragState = null;
+      let floorPlanSaveTimer = null;
+      let floorPlanIgnoreRemoteUntil = 0;
 
       // Initialize WebSocket connection
       function initWebSocket() {
@@ -1809,6 +2061,7 @@
           loadProvisioningEntries();
           loadNodes();
           syncCommandTestStatus();
+          loadFloorPlans();
         };
 
         ws.onmessage = (event) => {
@@ -1960,6 +2213,18 @@
                 message.timestamp,
                 message.stats
               );
+            }
+            pulseFloorPlanNode(message.data?.nodeId);
+            break;
+
+          case "MANUFACTURER_PROPRIETARY_COMMAND":
+          case "COMMAND_CLASS_COMMAND":
+            pulseFloorPlanNode(message.data?.nodeId);
+            break;
+
+          case "FLOOR_PLANS_UPDATED":
+            if (message.data && Date.now() >= floorPlanIgnoreRemoteUntil) {
+              applyFloorPlanState(message.data, true);
             }
             break;
 
@@ -2227,6 +2492,8 @@
         if (typeof updateNodesListForCommands === 'function') {
           updateNodesListForCommands(nodes);
         }
+        floorPlanNetworkNodes = nodes;
+        renderFloorPlanNodePalette();
       }
 
       // Remove node function
@@ -3289,16 +3556,6 @@
       function applyCommandTestSnapshot(snapshot) {
         if (!snapshot) return;
 
-        commandTestEntries = Array.isArray(snapshot.events)
-          ? [...snapshot.events]
-          : [];
-        if (commandTestEntries.length > MAX_COMMAND_TEST_ENTRIES) {
-          commandTestEntries = commandTestEntries.slice(
-            0,
-            MAX_COMMAND_TEST_ENTRIES
-          );
-        }
-
         if (snapshot.stats) {
           commandTestStats = {
             total: snapshot.stats.total || 0,
@@ -3312,7 +3569,6 @@
 
         rebuildCommandTestChart(snapshot.chartPoints, false);
         updateCommandTestStats();
-        renderCommandTestLog();
       }
 
       function updateCommandTestExpectedLine() {
@@ -3403,29 +3659,27 @@
         const statusText = document.getElementById("cmdTestStatusText");
         const startBtn = document.getElementById("cmdTestStartBtn");
         const stopBtn = document.getElementById("cmdTestStopBtn");
-        const clearBtn = document.getElementById("cmdTestClearBtn");
         const nodeInput = document.getElementById("cmdTestNodeId");
         const intervalInput = document.getElementById("cmdTestIntervalSec");
 
         if (active) {
           badge.className = "cmd-test-status-badge recording";
-          const intervalSec =
+          const intervalLabel =
             commandTestExpectedIntervalMs != null
-              ? (commandTestExpectedIntervalMs / 1000).toFixed(
+              ? `~${(commandTestExpectedIntervalMs / 1000).toFixed(
                   commandTestExpectedIntervalMs % 1000 === 0 ? 0 : 1
-                )
-              : "?";
+                )}s interval`
+              : "no expected interval";
           const nodeLabel =
             commandTestNodeFilter !== null &&
             commandTestNodeFilter !== undefined
               ? `node ${commandTestNodeFilter}`
               : "all nodes";
-          statusText.textContent = `Shared session · ${nodeLabel} · ~${intervalSec}s interval`;
+          statusText.textContent = `Shared session · ${nodeLabel} · ${intervalLabel}`;
           startBtn.disabled = true;
           stopBtn.disabled = false;
           nodeInput.disabled = true;
           if (intervalInput) intervalInput.disabled = true;
-          if (clearBtn) clearBtn.disabled = true;
           updateCommandTestLogFileInfo(sessionData);
           ensureCommandTestChart();
           startCommandTestDurationTimer();
@@ -3436,7 +3690,6 @@
           stopBtn.disabled = true;
           nodeInput.disabled = false;
           if (intervalInput) intervalInput.disabled = false;
-          if (clearBtn) clearBtn.disabled = false;
           if (sessionData?.logUrl) {
             updateCommandTestLogFileInfo(sessionData);
           }
@@ -3499,114 +3752,8 @@
         }
       }
 
-      function formatCommandTestTimestamp(timestamp) {
-        const date = timestamp ? new Date(timestamp) : new Date();
-        return date.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          fractionalSecondDigits: 3,
-        });
-      }
-
-      function formatCommandTestDetails(data) {
-        const parts = [];
-        if (data.direction) {
-          parts.push(data.direction === "incoming" ? "From lock" : "To lock");
-        }
-        parts.push(`Node ${data.nodeId}`);
-        if (data.commandClass) {
-          parts.push(data.commandClass);
-        } else if (data.ccId !== undefined) {
-          parts.push(`CC 0x${Number(data.ccId).toString(16).padStart(2, "0")}`);
-        }
-        if (data.ccCommand !== undefined) {
-          parts.push(
-            `Cmd 0x${Number(data.ccCommand).toString(16).padStart(2, "0")}`
-          );
-        }
-        if (data.manufacturerId !== undefined) {
-          parts.push(
-            `Mfg 0x${Number(data.manufacturerId).toString(16).padStart(4, "0")}`
-          );
-        }
-        if (data.frameNumber !== undefined) {
-          parts.push(`Frame #${data.frameNumber}`);
-        }
-        if (data.duration !== undefined) {
-          parts.push(`${data.duration}ms`);
-        }
-        if (data.intervalMs != null) {
-          parts.push(`Interval: ${data.intervalMs}ms`);
-        }
-        if (data.source) {
-          parts.push(`Source: ${data.source}`);
-        }
-        return parts.join(" | ");
-      }
-
-      function renderCommandTestLog() {
-        const container = document.getElementById("cmdTestLogMessages");
-        if (!container) return;
-
-        if (commandTestEntries.length === 0) {
-          container.innerHTML =
-            '<div class="ws-log-empty">No commands recorded yet in this session.</div>';
-          return;
-        }
-
-        container.innerHTML = commandTestEntries
-          .map((entry) => {
-            const isIncoming = entry.direction === "incoming";
-            const success = entry.success !== false;
-            const statusClass = isIncoming
-              ? "incoming"
-              : success
-              ? "success"
-              : "failed";
-            const directionLabel = isIncoming ? "IN" : "OUT";
-            const statusLabel = isIncoming
-              ? "RECEIVED"
-              : success
-              ? "SUCCESS"
-              : "FAILED";
-            const payloadLine = entry.payloadHex
-              ? `<div class="cmd-test-entry-details">Payload: ${escapeHtml(entry.payloadHex)}</div>`
-              : "";
-            const errorLine = entry.error
-              ? `<div class="cmd-test-entry-error">Error: ${escapeHtml(entry.error)}</div>`
-              : "";
-
-            return `
-              <div class="cmd-test-entry ${statusClass}">
-                <div class="cmd-test-entry-time">${formatCommandTestTimestamp(entry.timestamp)}</div>
-                <div class="cmd-test-entry-body">
-                  <div class="cmd-test-entry-header">
-                    <span class="cmd-test-entry-direction ${isIncoming ? "incoming" : "outgoing"}">${directionLabel}</span>
-                    <span class="cmd-test-entry-status ${statusClass}">${statusLabel}</span>
-                    <span style="font-size: var(--font-size-xs); color: var(--text-secondary);">
-                      ${escapeHtml(formatCommandTestDetails(entry))}
-                    </span>
-                  </div>
-                  ${payloadLine}
-                  ${errorLine}
-                </div>
-              </div>
-            `;
-          })
-          .join("");
-
-        if (commandTestAutoScroll) {
-          container.scrollTop = container.scrollHeight;
-        }
-      }
-
       function addCommandTestEntry(data, timestamp, serverStats) {
         const entry = { ...data, timestamp: timestamp || data.timestamp };
-        commandTestEntries.unshift(entry);
-        if (commandTestEntries.length > MAX_COMMAND_TEST_ENTRIES) {
-          commandTestEntries = commandTestEntries.slice(0, MAX_COMMAND_TEST_ENTRIES);
-        }
 
         if (serverStats) {
           commandTestStats = {
@@ -3621,38 +3768,6 @@
 
         addCommandTestChartPoint(entry);
         updateCommandTestStats();
-        renderCommandTestLog();
-      }
-
-      function clearCommandTestLog() {
-        if (commandTestActive) {
-          showAlert(
-            "Stop monitoring before clearing — session is shared with all clients",
-            "info"
-          );
-          return;
-        }
-
-        commandTestEntries = [];
-        commandTestStats = {
-          total: 0,
-          incoming: 0,
-          outgoing: 0,
-          failed: 0,
-          intervalSum: 0,
-          intervalCount: 0,
-        };
-        resetCommandTestChart(true);
-        updateCommandTestStats();
-        renderCommandTestLog();
-      }
-
-      function toggleCommandTestAutoScroll() {
-        commandTestAutoScroll = !commandTestAutoScroll;
-        const btn = document.getElementById("cmdTestAutoScrollBtn");
-        if (btn) {
-          btn.textContent = `Auto-scroll: ${commandTestAutoScroll ? "ON" : "OFF"}`;
-        }
       }
 
       async function syncCommandTestStatus() {
@@ -3700,17 +3815,15 @@
         }
 
         if (!rawInterval) {
-          showAlert("Expected interval is required", "error");
-          return;
+          // Expected interval is optional
+        } else {
+          const intervalSec = parseFloat(rawInterval, 10);
+          if (Number.isNaN(intervalSec) || intervalSec <= 0) {
+            showAlert("Expected interval must be a positive number", "error");
+            return;
+          }
+          payload.expectedIntervalSec = intervalSec;
         }
-
-        const intervalSec = parseFloat(rawInterval, 10);
-        if (Number.isNaN(intervalSec) || intervalSec <= 0) {
-          showAlert("Expected interval must be a positive number", "error");
-          return;
-        }
-
-        payload.expectedIntervalSec = intervalSec;
 
         const startBtn = document.getElementById("cmdTestStartBtn");
         startBtn.disabled = true;
@@ -3754,10 +3867,486 @@
         }
       }
 
+      }
+
+      // Floor Plan Functions
+      function createFloorPlanId() {
+        return `floor-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      }
+
+      function getActiveFloorPlanMap() {
+        if (!floorPlanState.maps.length) return null;
+        const active =
+          floorPlanState.maps.find((m) => m.id === floorPlanState.activeMapId) ||
+          floorPlanState.maps[0];
+        if (active && floorPlanState.activeMapId !== active.id) {
+          floorPlanState.activeMapId = active.id;
+        }
+        return active || null;
+      }
+
+      function applyFloorPlanState(data, fromRemote) {
+        floorPlanState = {
+          maps: Array.isArray(data?.maps) ? data.maps : [],
+          activeMapId: data?.activeMapId ?? null,
+        };
+        if (
+          floorPlanState.maps.length &&
+          !floorPlanState.maps.some((m) => m.id === floorPlanState.activeMapId)
+        ) {
+          floorPlanState.activeMapId = floorPlanState.maps[0].id;
+        }
+        renderFloorPlanUI();
+        if (!fromRemote) {
+          scheduleFloorPlanSave();
+        }
+      }
+
+      async function loadFloorPlans() {
+        try {
+          const result = await sendWebSocketMessage("GET_FLOOR_PLANS");
+          if (result.type === "FLOOR_PLANS" && result.data) {
+            applyFloorPlanState(result.data, true);
+          }
+        } catch (error) {
+          console.warn("Could not load floor plans:", error.message);
+        }
+      }
+
+      function scheduleFloorPlanSave() {
+        if (floorPlanSaveTimer) {
+          clearTimeout(floorPlanSaveTimer);
+        }
+        floorPlanSaveTimer = setTimeout(saveFloorPlans, 400);
+      }
+
+      async function saveFloorPlans() {
+        try {
+          floorPlanIgnoreRemoteUntil = Date.now() + 800;
+          await sendWebSocketMessage("SAVE_FLOOR_PLANS", {
+            maps: floorPlanState.maps,
+            activeMapId: floorPlanState.activeMapId,
+          });
+        } catch (error) {
+          console.warn("Failed to save floor plans:", error.message);
+        }
+      }
+
+      function addFloorPlanMap() {
+        const id = createFloorPlanId();
+        const index = floorPlanState.maps.length + 1;
+        floorPlanState.maps.push({
+          id,
+          name: `Floor ${index}`,
+          imageUrl: null,
+          imageMimeType: null,
+          controller: null,
+          nodes: {},
+        });
+        floorPlanState.activeMapId = id;
+        renderFloorPlanUI();
+        scheduleFloorPlanSave();
+      }
+
+      function deleteActiveFloorPlanMap() {
+        const active = getActiveFloorPlanMap();
+        if (!active) return;
+        if (
+          !confirm(`Delete "${active.name}" and all node positions on this floor?`)
+        ) {
+          return;
+        }
+        floorPlanState.maps = floorPlanState.maps.filter((m) => m.id !== active.id);
+        floorPlanState.activeMapId = floorPlanState.maps[0]?.id ?? null;
+        floorPlanPlacementMode = null;
+        renderFloorPlanUI();
+        scheduleFloorPlanSave();
+      }
+
+      function selectFloorPlanMap(mapId) {
+        floorPlanState.activeMapId = mapId;
+        floorPlanPlacementMode = null;
+        renderFloorPlanUI();
+        scheduleFloorPlanSave();
+      }
+
+      function selectFloorPlanPlacement(mode, nodeId) {
+        if (mode === "controller") {
+          floorPlanPlacementMode = { type: "controller" };
+        } else {
+          floorPlanPlacementMode = { type: "node", nodeId };
+        }
+        updateFloorPlanPlacementHint();
+        renderFloorPlanPaletteSelection();
+        const wrap = document.getElementById("floorPlanCanvasWrap");
+        if (wrap) wrap.classList.add("placing");
+      }
+
+      function updateFloorPlanPlacementHint() {
+        const hint = document.getElementById("floorPlanPlacementHint");
+        if (!hint) return;
+        if (!floorPlanPlacementMode) {
+          hint.textContent = "Select an item, then click the map to place it.";
+          return;
+        }
+        if (floorPlanPlacementMode.type === "controller") {
+          hint.textContent = "Click the map to place the controller (node 1).";
+          return;
+        }
+        hint.textContent = `Click the map to place node ${floorPlanPlacementMode.nodeId}.`;
+      }
+
+      function renderFloorPlanNodePalette() {
+        const container = document.getElementById("floorPlanNodePalette");
+        if (!container) return;
+
+        const nodes = floorPlanNetworkNodes.filter((n) => Number(n.id) !== 1);
+        if (nodes.length === 0) {
+          container.innerHTML =
+            '<div style="font-size: var(--font-size-xs); color: var(--text-tertiary);">No lock nodes connected yet</div>';
+          return;
+        }
+
+        container.innerHTML = nodes
+          .map((node) => {
+            const color = getCommandTestNodeColor(node.id);
+            const selected =
+              floorPlanPlacementMode?.type === "node" &&
+              String(floorPlanPlacementMode.nodeId) === String(node.id)
+                ? " selected"
+                : "";
+            return `
+              <button
+                type="button"
+                class="floor-plan-palette-item${selected}"
+                onclick="selectFloorPlanPlacement('node', ${node.id})"
+              >
+                <span class="floor-plan-palette-swatch" style="background: ${color}"></span>
+                Node ${node.id}${node.name ? ` · ${escapeHtml(node.name)}` : ""}
+              </button>
+            `;
+          })
+          .join("");
+      }
+
+      function renderFloorPlanPaletteSelection() {
+        const controllerBtn = document.getElementById("floorPlanControllerBtn");
+        if (controllerBtn) {
+          controllerBtn.classList.toggle(
+            "selected",
+            floorPlanPlacementMode?.type === "controller"
+          );
+        }
+        renderFloorPlanNodePalette();
+      }
+
+      function renderFloorPlanTabs() {
+        const tabs = document.getElementById("floorPlanTabs");
+        if (!tabs) return;
+
+        if (!floorPlanState.maps.length) {
+          tabs.innerHTML =
+            '<span style="font-size: var(--font-size-sm); color: var(--text-tertiary);">No floors yet</span>';
+          return;
+        }
+
+        tabs.innerHTML = floorPlanState.maps
+          .map((map) => {
+            const active = map.id === floorPlanState.activeMapId ? " active" : "";
+            return `
+              <button
+                type="button"
+                class="floor-plan-tab${active}"
+                onclick="selectFloorPlanMap('${map.id}')"
+                title="Switch to this floor"
+              >
+                ${escapeHtml(map.name || "Floor")}
+              </button>
+            `;
+          })
+          .join("");
+      }
+
+      function renderFloorPlanCanvas() {
+        const wrap = document.getElementById("floorPlanCanvasWrap");
+        if (!wrap) return;
+
+        const map = getActiveFloorPlanMap();
+        wrap.classList.toggle("placing", !!floorPlanPlacementMode);
+
+        if (!map) {
+          wrap.innerHTML =
+            '<div class="floor-plan-empty" id="floorPlanEmpty">Add a floor and upload a map image or PDF to get started.</div>';
+          return;
+        }
+
+        if (!map.imageUrl) {
+          wrap.innerHTML =
+            '<div class="floor-plan-empty" id="floorPlanEmpty">Upload an image or PDF for this floor.</div>';
+          return;
+        }
+
+        const markers = [];
+        if (map.controller) {
+          markers.push({
+            kind: "controller",
+            nodeId: 1,
+            x: map.controller.x,
+            y: map.controller.y,
+          });
+        }
+        Object.entries(map.nodes || {}).forEach(([nodeId, pos]) => {
+          markers.push({
+            kind: "node",
+            nodeId,
+            x: pos.x,
+            y: pos.y,
+          });
+        });
+
+        wrap.innerHTML = `
+          <div class="floor-plan-map-inner" id="floorPlanMapInner">
+            <img src="${escapeHtml(map.imageUrl)}" alt="${escapeHtml(map.name || "Floor plan")}" draggable="false" />
+            <div class="floor-plan-markers" id="floorPlanMarkers">
+              ${markers
+                .map((marker) => {
+                  const isController = marker.kind === "controller";
+                  const color = isController
+                    ? "var(--status-warning)"
+                    : getCommandTestNodeColor(marker.nodeId);
+                  const label = isController ? "C1" : String(marker.nodeId);
+                  return `
+                    <div
+                      class="floor-plan-marker${isController ? " controller" : ""}"
+                      data-node-id="${escapeHtml(String(marker.nodeId))}"
+                      data-kind="${marker.kind}"
+                      style="left: ${marker.x * 100}%; top: ${marker.y * 100}%; background: ${isController ? "#1e3a5f" : color};"
+                      onmousedown="startFloorPlanMarkerDrag(event, '${marker.kind}', '${escapeHtml(String(marker.nodeId))}')"
+                      title="${isController ? "Controller (Node 1)" : `Node ${marker.nodeId}`}"
+                    >${escapeHtml(label)}</div>
+                  `;
+                })
+                .join("")}
+            </div>
+          </div>
+        `;
+
+        const inner = document.getElementById("floorPlanMapInner");
+        if (inner) {
+          inner.addEventListener("click", handleFloorPlanMapClick);
+        }
+      }
+
+      function renderFloorPlanUI() {
+        renderFloorPlanTabs();
+        renderFloorPlanCanvas();
+        renderFloorPlanPaletteSelection();
+        updateFloorPlanPlacementHint();
+      }
+
+      function getFloorPlanNormalizedCoords(event) {
+        const inner = document.getElementById("floorPlanMapInner");
+        if (!inner) return null;
+        const rect = inner.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return null;
+        const x = (event.clientX - rect.left) / rect.width;
+        const y = (event.clientY - rect.top) / rect.height;
+        return {
+          x: Math.min(1, Math.max(0, x)),
+          y: Math.min(1, Math.max(0, y)),
+        };
+      }
+
+      function handleFloorPlanMapClick(event) {
+        if (floorPlanDragState?.moved) return;
+        if (!floorPlanPlacementMode) return;
+        if (event.target.closest(".floor-plan-marker")) return;
+
+        const coords = getFloorPlanNormalizedCoords(event);
+        if (!coords) return;
+
+        const map = getActiveFloorPlanMap();
+        if (!map) return;
+
+        if (floorPlanPlacementMode.type === "controller") {
+          map.controller = coords;
+        } else {
+          if (!map.nodes) map.nodes = {};
+          map.nodes[String(floorPlanPlacementMode.nodeId)] = coords;
+        }
+
+        floorPlanPlacementMode = null;
+        renderFloorPlanUI();
+        scheduleFloorPlanSave();
+      }
+
+      function startFloorPlanMarkerDrag(event, kind, nodeId) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        floorPlanDragState = {
+          kind,
+          nodeId,
+          moved: false,
+          startX: event.clientX,
+          startY: event.clientY,
+        };
+
+        const onMove = (moveEvent) => {
+          if (!floorPlanDragState) return;
+          const dx = moveEvent.clientX - floorPlanDragState.startX;
+          const dy = moveEvent.clientY - floorPlanDragState.startY;
+          if (Math.abs(dx) + Math.abs(dy) > 4) {
+            floorPlanDragState.moved = true;
+          }
+
+          const coords = getFloorPlanNormalizedCoords(moveEvent);
+          if (!coords) return;
+
+          const map = getActiveFloorPlanMap();
+          if (!map) return;
+
+          if (floorPlanDragState.kind === "controller") {
+            map.controller = coords;
+          } else {
+            if (!map.nodes) map.nodes = {};
+            map.nodes[String(floorPlanDragState.nodeId)] = coords;
+          }
+
+          const marker = document.querySelector(
+            `.floor-plan-marker[data-node-id="${floorPlanDragState.nodeId}"]`
+          );
+          if (marker) {
+            marker.style.left = `${coords.x * 100}%`;
+            marker.style.top = `${coords.y * 100}%`;
+          }
+        };
+
+        const onUp = () => {
+          document.removeEventListener("mousemove", onMove);
+          document.removeEventListener("mouseup", onUp);
+          if (floorPlanDragState?.moved) {
+            scheduleFloorPlanSave();
+          }
+          floorPlanDragState = null;
+        };
+
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+      }
+
+      function pulseFloorPlanNode(nodeId) {
+        if (nodeId == null) return;
+        const markers = document.querySelectorAll(
+          `.floor-plan-marker[data-node-id="${String(nodeId)}"]`
+        );
+        markers.forEach((marker) => {
+          marker.classList.remove("pulse");
+          void marker.offsetWidth;
+          marker.classList.add("pulse");
+          marker.addEventListener(
+            "animationend",
+            () => marker.classList.remove("pulse"),
+            { once: true }
+          );
+        });
+      }
+
+      async function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result;
+            if (typeof result !== "string") {
+              reject(new Error("Could not read file"));
+              return;
+            }
+            const base64 = result.split(",")[1];
+            resolve(base64);
+          };
+          reader.onerror = () => reject(reader.error || new Error("Read failed"));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      async function renderPdfFirstPageToPng(file) {
+        if (typeof pdfjsLib === "undefined") {
+          throw new Error("PDF.js is not loaded");
+        }
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext("2d");
+        await page.render({ canvasContext: context, viewport }).promise;
+
+        const blob = await new Promise((resolve) =>
+          canvas.toBlob(resolve, "image/png")
+        );
+        if (!blob) {
+          throw new Error("Could not render PDF page");
+        }
+        return blob;
+      }
+
+      async function handleFloorPlanFileSelected(event) {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+
+        let map = getActiveFloorPlanMap();
+        if (!map) {
+          addFloorPlanMap();
+          map = getActiveFloorPlanMap();
+        }
+        if (!map) return;
+
+        try {
+          let uploadBlob = file;
+          let mimeType = file.type || "application/octet-stream";
+          let originalName = file.name;
+
+          if (
+            file.type === "application/pdf" ||
+            file.name.toLowerCase().endsWith(".pdf")
+          ) {
+            uploadBlob = await renderPdfFirstPageToPng(file);
+            mimeType = "image/png";
+            originalName = `${file.name.replace(/\.pdf$/i, "")}.png`;
+          }
+
+          const dataBase64 = await readFileAsBase64(uploadBlob);
+          const result = await sendWebSocketMessage("UPLOAD_FLOOR_PLAN_ASSET", {
+            dataBase64,
+            mimeType,
+            originalName,
+          });
+
+          if (result.type === "FLOOR_PLAN_ASSET_UPLOADED" && result.data?.url) {
+            map.imageUrl = result.data.url;
+            map.imageMimeType = result.data.mimeType;
+            renderFloorPlanUI();
+            scheduleFloorPlanSave();
+            showAlert("Floor plan uploaded", "success");
+          }
+        } catch (error) {
+          showAlert("Failed to upload floor plan: " + error.message, "error");
+        }
+      }
+
       window.startCommandTest = startCommandTest;
       window.stopCommandTest = stopCommandTest;
-      window.clearCommandTestLog = clearCommandTestLog;
-      window.toggleCommandTestAutoScroll = toggleCommandTestAutoScroll;
+      window.addFloorPlanMap = addFloorPlanMap;
+      window.deleteActiveFloorPlanMap = deleteActiveFloorPlanMap;
+      window.selectFloorPlanMap = selectFloorPlanMap;
+      window.selectFloorPlanPlacement = selectFloorPlanPlacement;
+      window.handleFloorPlanFileSelected = handleFloorPlanFileSelected;
 
       // Command Modal Functions
       function openCommandModal(nodeId, ccId, ccName, isManufacturerProprietary) {

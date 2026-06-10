@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { ZWaveProvisioningClient } from "./zwave-client.js";
 import { ZWaveControllerWebsocket } from "./plugins/ZWaveControllerWebsocket.js";
+import { FloorPlanStore } from "./floor-plan-store.js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
@@ -96,12 +97,19 @@ const LOG_LEVEL = process.env.ZWAVE_LOG_LEVEL || "silly";
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 const publicDir = join(__dirname, "public");
 const commandMonitorLogDir =
 	process.env.COMMAND_MONITOR_LOG_DIR ||
 	join(__dirname, "..", "store", "command-monitor-logs");
+const floorPlanDataDir =
+	process.env.FLOOR_PLAN_DATA_DIR ||
+	join(__dirname, "..", "store", "floor-plans");
+const floorPlanStore = new FloorPlanStore(floorPlanDataDir);
+await floorPlanStore.init();
+
 app.use(express.static(publicDir));
+app.use("/floor-plan-assets", express.static(join(floorPlanDataDir, "assets")));
 app.use(
 	"/command-monitor-logs",
 	express.static(commandMonitorLogDir, {
@@ -197,6 +205,7 @@ websocketPlugin = plugin.apply(null, {
 	cacheDir: CACHE_DIR,
 	logLevel: LOG_LEVEL,
 	commandMonitorLogDir,
+	floorPlanStore,
 });
 
 process.on("SIGINT", async () => {

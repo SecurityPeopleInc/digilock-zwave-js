@@ -28,6 +28,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 		this.eventHandlersSetup = false;
 		this.commandTestSession = this._createEmptyCommandTestSession();
 		this.commandMonitorLogDir = null;
+		this.floorPlanStore = null;
 	}
 
 	/**
@@ -164,6 +165,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 		this.logLevel = options.logLevel ?? "silly";
 		this.commandMonitorLogDir =
 			options.commandMonitorLogDir ?? "./store/command-monitor-logs";
+		this.floorPlanStore = options.floorPlanStore ?? null;
 
 		this.wss = new WebSocketServer({ server: options.server });
 
@@ -372,18 +374,17 @@ export class ZWaveControllerWebsocket extends Plugin {
 		const session = this.commandTestSession;
 		const enriched = { ...commandData };
 
-		if (
-			commandData.direction !== "incoming" ||
-			session.expectedIntervalMs == null
-		) {
+		if (commandData.direction !== "incoming") {
 			return enriched;
+		}
+
+		if (session.expectedIntervalMs != null) {
+			enriched.expectedIntervalMs = session.expectedIntervalMs;
 		}
 
 		const receivedAt = commandData.timestamp
 			? new Date(commandData.timestamp).getTime()
 			: Date.now();
-
-		enriched.expectedIntervalMs = session.expectedIntervalMs;
 
 		const nodeKey =
 			commandData.nodeId != null ? String(commandData.nodeId) : "_unknown";
@@ -681,6 +682,18 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 				case "GET_COMMAND_TEST_STATUS":
 					await this.handleGetCommandTestStatus(client, requestId);
+					break;
+
+				case "GET_FLOOR_PLANS":
+					await this.handleGetFloorPlans(client, requestId);
+					break;
+
+				case "SAVE_FLOOR_PLANS":
+					await this.handleSaveFloorPlans(client, data, requestId);
+					break;
+
+				case "UPLOAD_FLOOR_PLAN_ASSET":
+					await this.handleUploadFloorPlanAsset(client, data, requestId);
 					break;
 
 				case "PING":
@@ -1603,22 +1616,34 @@ export class ZWaveControllerWebsocket extends Plugin {
 			const filterNodeId = parsedNodeId.value;
 
 			let expectedIntervalMs = null;
-			if (data.expectedIntervalMs !== undefined) {
+			const hasIntervalMs =
+				data.expectedIntervalMs !== undefined &&
+				data.expectedIntervalMs !== null &&
+				data.expectedIntervalMs !== "";
+			const hasIntervalSec =
+				data.expectedIntervalSec !== undefined &&
+				data.expectedIntervalSec !== null &&
+				data.expectedIntervalSec !== "";
+
+			if (hasIntervalMs) {
 				expectedIntervalMs = Number(data.expectedIntervalMs);
-			} else if (data.expectedIntervalSec !== undefined) {
+			} else if (hasIntervalSec) {
 				expectedIntervalMs = Number(data.expectedIntervalSec) * 1000;
 			}
 
-			if (
-				Number.isNaN(expectedIntervalMs) ||
-				expectedIntervalMs <= 0
-			) {
-				this.sendResponse(client, requestId, {
-					type: "ERROR",
-					message:
-						"expectedIntervalMs (or expectedIntervalSec) must be a positive number",
-				});
-				return;
+			if (expectedIntervalMs != null) {
+				if (
+					Number.isNaN(expectedIntervalMs) ||
+					expectedIntervalMs <= 0
+				) {
+					this.sendResponse(client, requestId, {
+						type: "ERROR",
+						message:
+							"expectedIntervalMs (or expectedIntervalSec) must be a positive number when provided",
+					});
+					return;
+				}
+				expectedIntervalMs = Math.round(expectedIntervalMs);
 			}
 
 			const startedAt = new Date().toISOString();
@@ -1627,7 +1652,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 				active: true,
 				nodeId: filterNodeId,
 				startedAt,
-				expectedIntervalMs: Math.round(expectedIntervalMs),
+				expectedIntervalMs,
 			};
 
 			await this._openCommandTestLogFile(this.commandTestSession);
@@ -1694,6 +1719,114 @@ export class ZWaveControllerWebsocket extends Plugin {
 			data: this._getPublicCommandTestSession(),
 			timestamp: new Date().toISOString(),
 		});
+	}
+
+	async handleGetFloorPlans(client, requestId) {
+		try {
+			if (!this.floorPlanStore) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "Floor plan storage is not configured",
+				});
+				return;
+			}
+
+			const layout = await this.floorPlanStore.load();
+			this.sendResponse(client, requestId, {
+				type: "FLOOR_PLANS",
+				data: layout,
+				timestamp: new Date().toISOString(),
+			});
+		} catch (error) {
+			this.sendResponse(client, requestId, {
+				type: "ERROR",
+				message: error.message || "Failed to load floor plans",
+			});
+		}
+	}
+
+	async handleSaveFloorPlans(client, data, requestId) {
+		try {
+			if (!this.floorPlanStore) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "Floor plan storage is not configured",
+				});
+				return;
+			}
+
+			const saved = await this.floorPlanStore.save({
+				maps: data.maps,
+				activeMapId: data.activeMapId,
+			});
+
+			const response = {
+				type: "FLOOR_PLANS_SAVED",
+				data: saved,
+				timestamp: new Date().toISOString(),
+			};
+
+			this.sendResponse(client, requestId, response);
+			this.broadcast({
+				type: "FLOOR_PLANS_UPDATED",
+				data: saved,
+				timestamp: response.timestamp,
+			});
+		} catch (error) {
+			this.sendResponse(client, requestId, {
+				type: "ERROR",
+				message: error.message || "Failed to save floor plans",
+			});
+		}
+	}
+
+	async handleUploadFloorPlanAsset(client, data, requestId) {
+		try {
+			if (!this.floorPlanStore) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "Floor plan storage is not configured",
+				});
+				return;
+			}
+
+			const base64Data = data.dataBase64;
+			const mimeType = data.mimeType;
+			const originalName = data.originalName;
+
+			if (!base64Data || typeof base64Data !== "string") {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "dataBase64 is required",
+				});
+				return;
+			}
+
+			if (!mimeType || typeof mimeType !== "string") {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "mimeType is required",
+				});
+				return;
+			}
+
+			const asset = await this.floorPlanStore.saveAsset(
+				base64Data,
+				originalName,
+				mimeType,
+			);
+
+			this.sendResponse(client, requestId, {
+				type: "FLOOR_PLAN_ASSET_UPLOADED",
+				data: asset,
+				timestamp: new Date().toISOString(),
+			});
+		} catch (error) {
+			this.sendResponse(client, requestId, {
+				type: "ERROR",
+				message: error.message || "Failed to upload floor plan asset",
+			});
+		}
 	}
 
 	/**
