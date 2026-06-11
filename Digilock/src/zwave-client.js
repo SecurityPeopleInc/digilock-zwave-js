@@ -1235,7 +1235,14 @@ export class ZWaveProvisioningClient extends EventEmitter {
 							}
 							const startTime = Date.now();
 							try {
-								await mpAPI.sendData(0x01fb, responsePayload);
+								const sender =
+									typeof mpAPI.withTXReport === "function"
+										? mpAPI.withTXReport()
+										: mpAPI;
+								const sendResult = await sender.sendData(
+									0x01fb,
+									responsePayload,
+								);
 								this.reportCommandActivity({
 									nodeId: node.id,
 									ccId: 0x91,
@@ -1246,6 +1253,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 									duration: Date.now() - startTime,
 									source: "auto_response",
 									direction: "outgoing",
+									txReport: sendResult?.txReport,
 								});
 								console.log(
 									`[MP Handler] ✅ Response sent to node ${

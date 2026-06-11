@@ -98,6 +98,21 @@ function reportCommandActivity(context, data) {
 	context.onCommandActivity?.(data);
 }
 
+function withTxReport(api) {
+	return typeof api?.withTXReport === "function" ? api.withTXReport() : api;
+}
+
+function attachTxReportFields(activity, sendResult) {
+	const txReport = sendResult?.txReport;
+	if (!txReport) {
+		return activity;
+	}
+	return {
+		...activity,
+		txReport,
+	};
+}
+
 export function createManufacturerProprietarySender(context) {
 	const {
 		driver,
@@ -283,24 +298,31 @@ export function createManufacturerProprietarySender(context) {
 			({ frameNumber, payload, payloadHex }) => {
 				console.log(`[MP Send] Queuing frame #${frameNumber}...`);
 				const startTime = Date.now();
-				return ccMP
+				return withTxReport(ccMP)
 					.sendData(manufacturerId, payload)
 					.then((result) => {
 						const duration = Date.now() - startTime;
 						console.log(
 							`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
 						);
-						reportCommandActivity(context, {
-							nodeId,
-							ccId: 0x91,
-							commandClass: "Manufacturer Proprietary",
-							manufacturerId,
-							payloadHex,
-							frameNumber,
-							success: true,
-							duration,
-							source: "manufacturer_proprietary",
-						});
+						reportCommandActivity(
+							context,
+							attachTxReportFields(
+								{
+									direction: "outgoing",
+									nodeId,
+									ccId: 0x91,
+									commandClass: "Manufacturer Proprietary",
+									manufacturerId,
+									payloadHex,
+									frameNumber,
+									success: true,
+									duration,
+									source: "manufacturer_proprietary",
+								},
+								result,
+							),
+						);
 						return {
 							frameNumber,
 							payloadHex,
@@ -314,6 +336,7 @@ export function createManufacturerProprietarySender(context) {
 							`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
 						);
 						reportCommandActivity(context, {
+							direction: "outgoing",
 							nodeId,
 							ccId: 0x91,
 							commandClass: "Manufacturer Proprietary",
@@ -553,24 +576,31 @@ export function createManufacturerProprietarySender(context) {
 			const frameNumber = i + 1;
 			console.log(`[MP Send] Queuing frame #${frameNumber}...`);
 			const startTime = Date.now();
-			return ccMP
+			return withTxReport(ccMP)
 				.sendData(manufacturerId, vendorPayload)
 				.then((result) => {
 					const duration = Date.now() - startTime;
 					console.log(
 						`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
 					);
-					reportCommandActivity(context, {
-						nodeId,
-						ccId: 0x91,
-						commandClass: "Manufacturer Proprietary",
-						manufacturerId,
-						payloadHex,
-						frameNumber,
-						success: true,
-						duration,
-						source: "manufacturer_proprietary",
-					});
+					reportCommandActivity(
+						context,
+						attachTxReportFields(
+							{
+								direction: "outgoing",
+								nodeId,
+								ccId: 0x91,
+								commandClass: "Manufacturer Proprietary",
+								manufacturerId,
+								payloadHex,
+								frameNumber,
+								success: true,
+								duration,
+								source: "manufacturer_proprietary",
+							},
+							result,
+						),
+					);
 					return {
 						frameNumber,
 						result,
@@ -583,6 +613,7 @@ export function createManufacturerProprietarySender(context) {
 						`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
 					);
 					reportCommandActivity(context, {
+						direction: "outgoing",
 						nodeId,
 						ccId: 0x91,
 						commandClass: "Manufacturer Proprietary",

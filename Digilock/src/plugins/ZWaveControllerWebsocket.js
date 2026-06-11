@@ -4,6 +4,11 @@ import { Plugin } from "../models/Plugin.js";
 import { WebSocketServer } from "ws";
 import { ZWaveProvisioningClient } from "../zwave-client.js";
 import { CommandClasses } from "../../../packages/core/src/definitions/index.js";
+import {
+	buildCommandMonitorLogRecord,
+	COMMAND_MONITOR_LOG_COLUMNS,
+	formatPlanLocation,
+} from "../command-monitor-log-schema.js";
 
 const MAX_COMMAND_TEST_EVENTS = 500;
 const MAX_COMMAND_TEST_CHART_POINTS = 300;
@@ -410,25 +415,98 @@ export class ZWaveControllerWebsocket extends Plugin {
 	 * @private
 	 */
 	_buildCommandTestLogRecord(enriched, eventTimestamp) {
+		const record = buildCommandMonitorLogRecord(
+			enriched,
+			eventTimestamp,
+			this.commandTestSession,
+		);
 		return {
 			recordType: "event",
-			timestamp: eventTimestamp,
-			nodeId: enriched.nodeId ?? null,
-			direction: enriched.direction ?? null,
-			success: enriched.success !== false,
-			intervalMs:
-				enriched.intervalMs === undefined ? null : enriched.intervalMs,
-			expectedIntervalMs: enriched.expectedIntervalMs ?? null,
-			commandClass: enriched.commandClass ?? null,
-			ccId: enriched.ccId ?? null,
-			ccCommand: enriched.ccCommand ?? null,
-			manufacturerId: enriched.manufacturerId ?? null,
-			frameNumber: enriched.frameNumber ?? null,
-			duration: enriched.duration ?? null,
-			source: enriched.source ?? null,
-			payloadHex: enriched.payloadHex ?? null,
-			error: enriched.error ?? null,
+			...record,
 		};
+	}
+
+	/**
+	 * @private
+	 */
+	_parseOptionalNumber(value) {
+		if (value === undefined || value === null || value === "") {
+			return null;
+		}
+		const numeric = Number(value);
+		return Number.isFinite(numeric) ? numeric : null;
+	}
+
+	/**
+	 * @private
+	 */
+	_buildCommandTestLogContext(data = {}) {
+		return {
+			experimentId: data.experimentId ?? data.Experiment_ID ?? null,
+			roomTemperatureC:
+				this._parseOptionalNumber(
+					data.roomTemperatureC ?? data.Room_Temperature_C,
+				),
+			relativeHumidityPercent:
+				this._parseOptionalNumber(
+					data.relativeHumidityPercent ??
+						data.Relative_Humidity_Percent,
+				),
+			zone: data.zone ?? data.Zone ?? null,
+			gatewayId: data.gatewayId ?? data.Gateway_ID ?? 1,
+		};
+	}
+
+	/**
+	 * @private
+	 */
+	async _loadCommandTestLocationContext() {
+		const context = {
+			gatewayId: 1,
+			gatewayLocation: null,
+			zone: null,
+			lockLocationsByNode: {},
+			activeLockCount: null,
+		};
+
+		if (this.zwaveClient?.driver?.controller?.nodes) {
+			const nodes = [...this.zwaveClient.driver.controller.nodes.values()];
+			context.activeLockCount = nodes.filter((node) => node.id !== 1).length;
+			const homeId = this.zwaveClient.driver.controller.homeId;
+			if (homeId != null) {
+				context.gatewayId = homeId;
+			}
+		}
+
+		if (!this.floorPlanStore) {
+			return context;
+		}
+
+		try {
+			const layout = await this.floorPlanStore.load();
+			const activeMap =
+				layout.maps?.find((map) => map.id === layout.activeMapId) ??
+				layout.maps?.[0];
+			if (!activeMap) {
+				return context;
+			}
+
+			context.zone = activeMap.name ?? activeMap.id ?? null;
+			context.gatewayLocation = formatPlanLocation(activeMap.controller);
+			if (activeMap.nodes && typeof activeMap.nodes === "object") {
+				for (const [nodeId, coords] of Object.entries(activeMap.nodes)) {
+					context.lockLocationsByNode[nodeId] =
+						formatPlanLocation(coords);
+				}
+			}
+		} catch (error) {
+			console.warn(
+				"[CommandMonitor] Failed to load floor plan context:",
+				error.message,
+			);
+		}
+
+		return context;
 	}
 
 	/**
@@ -471,10 +549,19 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 		const header = {
 			recordType: "session_start",
-			timestamp: startedAt,
-			nodeId: session.nodeId,
-			expectedIntervalMs: session.expectedIntervalMs,
-			logFormatVersion: 2,
+			logFormatVersion: 3,
+			columns: COMMAND_MONITOR_LOG_COLUMNS,
+			Timestamp_UTC: startedAt,
+			Node_ID: session.nodeId,
+			Transmission_Interval_ms: session.expectedIntervalMs,
+			Experiment_ID: session.logContext?.experimentId ?? null,
+			Room_Temperature_C: session.logContext?.roomTemperatureC ?? null,
+			Relative_Humidity_Percent:
+				session.logContext?.relativeHumidityPercent ?? null,
+			Zone: session.zone ?? session.logContext?.zone ?? null,
+			Active_Lock_Count: session.activeLockCount ?? null,
+			Gateway_ID: session.gatewayId ?? null,
+			Gateway_Location: session.gatewayLocation ?? null,
 		};
 
 		await appendFile(
@@ -498,8 +585,9 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 		const footer = {
 			recordType: "session_end",
-			timestamp: stoppedAt,
-			nodeId: session.nodeId,
+			Timestamp_UTC: stoppedAt,
+			Node_ID: session.nodeId,
+			Experiment_ID: session.logContext?.experimentId ?? null,
 		};
 
 		await appendFile(logPath, `${JSON.stringify(footer)}\n`, "utf8");
@@ -1521,6 +1609,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 			for (let i = 0; i < numericCount; i++) {
 				const startTime = Date.now();
+				let txReport;
 				try {
 					const command = new CommandClass({
 						nodeId: numericNodeId,
@@ -1531,6 +1620,9 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 					const result = await driver.sendCommand(command, {
 						supportCheck: false, // Allow sending even if CC is not reported as supported
+						onTXReport: (report) => {
+							txReport = report;
+						},
 					});
 
 					const duration = Date.now() - startTime;
@@ -1557,6 +1649,7 @@ export class ZWaveControllerWebsocket extends Plugin {
 						success: true,
 						duration,
 						source: "generic",
+						txReport,
 					});
 				} catch (error) {
 					const duration = Date.now() - startTime;
@@ -1664,12 +1757,21 @@ export class ZWaveControllerWebsocket extends Plugin {
 			}
 
 			const startedAt = new Date().toISOString();
+			const logContext = this._buildCommandTestLogContext(data);
+			const locationContext = await this._loadCommandTestLocationContext();
+
 			this.commandTestSession = {
 				...this._createEmptyCommandTestSession(),
 				active: true,
 				nodeId: filterNodeId,
 				startedAt,
 				expectedIntervalMs,
+				logContext,
+				zone: logContext.zone ?? locationContext.zone,
+				gatewayId: logContext.gatewayId ?? locationContext.gatewayId,
+				gatewayLocation: locationContext.gatewayLocation,
+				lockLocationsByNode: locationContext.lockLocationsByNode,
+				activeLockCount: locationContext.activeLockCount,
 			};
 
 			await this._openCommandTestLogFile(this.commandTestSession);
