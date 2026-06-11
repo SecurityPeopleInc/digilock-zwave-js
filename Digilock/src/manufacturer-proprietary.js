@@ -113,6 +113,100 @@ function attachTxReportFields(activity, sendResult) {
 	};
 }
 
+/**
+ * Runs an outgoing send through the shared queue when available so RTT excludes
+ * time spent waiting behind other queued commands.
+ * @param {Object} context
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+async function runOutgoingSend(context, fn) {
+	if (typeof context.runOutgoingSend === "function") {
+		return context.runOutgoingSend(fn);
+	}
+	return fn();
+}
+
+/**
+ * Sends one Manufacturer Proprietary frame and records per-frame RTT.
+ * @param {Object} context
+ * @param {Object} params
+ * @returns {Promise<Object>}
+ */
+async function sendManufacturerProprietaryFrame(
+	context,
+	{
+		ccMP,
+		manufacturerId,
+		payload,
+		payloadHex,
+		frameNumber,
+		nodeId,
+	},
+) {
+	return runOutgoingSend(context, async () => {
+		const startTime = Date.now();
+		try {
+			const result = await withTxReport(ccMP).sendData(
+				manufacturerId,
+				payload,
+			);
+			const duration = Date.now() - startTime;
+			console.log(
+				`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
+			);
+			reportCommandActivity(
+				context,
+				attachTxReportFields(
+					{
+						direction: "outgoing",
+						nodeId,
+						ccId: 0x91,
+						commandClass: "Manufacturer Proprietary",
+						manufacturerId,
+						payloadHex,
+						frameNumber,
+						success: true,
+						duration,
+						source: "manufacturer_proprietary",
+					},
+					result,
+				),
+			);
+			return {
+				frameNumber,
+				payloadHex,
+				result,
+				duration,
+			};
+		} catch (error) {
+			const duration = Date.now() - startTime;
+			console.log(
+				`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
+			);
+			reportCommandActivity(context, {
+				direction: "outgoing",
+				nodeId,
+				ccId: 0x91,
+				commandClass: "Manufacturer Proprietary",
+				manufacturerId,
+				payloadHex,
+				frameNumber,
+				success: false,
+				error: error.message,
+				duration,
+				source: "manufacturer_proprietary",
+			});
+			return {
+				frameNumber,
+				payloadHex,
+				error: error.message,
+				duration,
+			};
+		}
+	});
+}
+
 export function createManufacturerProprietarySender(context) {
 	const {
 		driver,
@@ -289,77 +383,23 @@ export function createManufacturerProprietarySender(context) {
 		}
 
 		console.log(
-			`[MP Send] ✅ Generated ${count} payload(s), queuing all commands for parallel processing...`,
+			`[MP Send] ✅ Generated ${count} payload(s), sending frames sequentially...`,
 		);
 
-		// Queue all commands at once - they'll be processed sequentially by the driver
-		// but this eliminates the wait time between queuing each command
-		const sendPromises = payloads.map(
-			({ frameNumber, payload, payloadHex }) => {
-				console.log(`[MP Send] Queuing frame #${frameNumber}...`);
-				const startTime = Date.now();
-				return withTxReport(ccMP)
-					.sendData(manufacturerId, payload)
-					.then((result) => {
-						const duration = Date.now() - startTime;
-						console.log(
-							`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
-						);
-						reportCommandActivity(
-							context,
-							attachTxReportFields(
-								{
-									direction: "outgoing",
-									nodeId,
-									ccId: 0x91,
-									commandClass: "Manufacturer Proprietary",
-									manufacturerId,
-									payloadHex,
-									frameNumber,
-									success: true,
-									duration,
-									source: "manufacturer_proprietary",
-								},
-								result,
-							),
-						);
-						return {
-							frameNumber,
-							payloadHex,
-							result,
-							duration,
-						};
-					})
-					.catch((error) => {
-						const duration = Date.now() - startTime;
-						console.log(
-							`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
-						);
-						reportCommandActivity(context, {
-							direction: "outgoing",
-							nodeId,
-							ccId: 0x91,
-							commandClass: "Manufacturer Proprietary",
-							manufacturerId,
-							payloadHex,
-							frameNumber,
-							success: false,
-							error: error.message,
-							duration,
-							source: "manufacturer_proprietary",
-						});
-						return {
-							frameNumber,
-							payloadHex,
-							error: error.message,
-							duration,
-						};
-					});
-			},
-		);
-
-		// Wait for all commands to complete
-		const results = await Promise.all(sendPromises);
+		const results = [];
+		for (const { frameNumber, payload, payloadHex } of payloads) {
+			console.log(`[MP Send] Sending frame #${frameNumber}...`);
+			results.push(
+				await sendManufacturerProprietaryFrame(context, {
+					ccMP,
+					manufacturerId,
+					payload,
+					payloadHex,
+					frameNumber,
+					nodeId,
+				}),
+			);
+		}
 
 		// Check for errors
 		const errors = results.filter((r) => r.error);
@@ -567,74 +607,24 @@ export function createManufacturerProprietarySender(context) {
 		);
 
 		console.log(
-			`[MP Send] ✅ Queuing ${count} command(s) for parallel processing...`,
+			`[MP Send] ✅ Sending ${count} frame(s) sequentially...`,
 		);
 
-		// Queue all commands at once - they'll be processed sequentially by the driver
-		// but this eliminates the wait time between queuing each command
-		const sendPromises = Array.from({ length: count }, (_, i) => {
+		const results = [];
+		for (let i = 0; i < count; i++) {
 			const frameNumber = i + 1;
-			console.log(`[MP Send] Queuing frame #${frameNumber}...`);
-			const startTime = Date.now();
-			return withTxReport(ccMP)
-				.sendData(manufacturerId, vendorPayload)
-				.then((result) => {
-					const duration = Date.now() - startTime;
-					console.log(
-						`[MP Send] ✅ Frame #${frameNumber} completed in ${duration}ms`,
-					);
-					reportCommandActivity(
-						context,
-						attachTxReportFields(
-							{
-								direction: "outgoing",
-								nodeId,
-								ccId: 0x91,
-								commandClass: "Manufacturer Proprietary",
-								manufacturerId,
-								payloadHex,
-								frameNumber,
-								success: true,
-								duration,
-								source: "manufacturer_proprietary",
-							},
-							result,
-						),
-					);
-					return {
-						frameNumber,
-						result,
-						duration,
-					};
-				})
-				.catch((error) => {
-					const duration = Date.now() - startTime;
-					console.log(
-						`[MP Send] ❌ Frame #${frameNumber} failed after ${duration}ms: ${error.message}`,
-					);
-					reportCommandActivity(context, {
-						direction: "outgoing",
-						nodeId,
-						ccId: 0x91,
-						commandClass: "Manufacturer Proprietary",
-						manufacturerId,
-						payloadHex,
-						frameNumber,
-						success: false,
-						error: error.message,
-						duration,
-						source: "manufacturer_proprietary",
-					});
-					return {
-						frameNumber,
-						error: error.message,
-						duration,
-					};
-				});
-		});
-
-		// Wait for all commands to complete
-		const results = await Promise.all(sendPromises);
+			console.log(`[MP Send] Sending frame #${frameNumber}...`);
+			results.push(
+				await sendManufacturerProprietaryFrame(context, {
+					ccMP,
+					manufacturerId,
+					payload: vendorPayload,
+					payloadHex,
+					frameNumber,
+					nodeId,
+				}),
+			);
+		}
 
 		// Check for errors
 		const errors = results.filter((r) => r.error);

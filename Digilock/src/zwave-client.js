@@ -50,6 +50,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 		this.driver = null;
 		this.driverReady = false;
 		this._mpSender = null; // Will be initialized after driver is ready
+		this._outgoingSendTail = Promise.resolve();
 
 		// Convert security keys to buffers
 		const securityKeysBuffers = convertSecurityKeys(
@@ -1066,7 +1067,22 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				this._forceManufacturerProprietarySupport(node),
 			onCommandActivity: (data) =>
 				this.reportCommandActivity({ direction: "outgoing", ...data }),
+			runOutgoingSend: (fn) => this._runOutgoingSend(fn),
 		});
+	}
+
+	/**
+	 * Serializes outgoing Z-Wave sends so round-trip timing starts when each
+	 * command actually runs, not when it is queued behind other traffic.
+	 * @template T
+	 * @param {() => Promise<T>} fn
+	 * @returns {Promise<T>}
+	 * @private
+	 */
+	_runOutgoingSend(fn) {
+		const run = this._outgoingSendTail.then(() => fn());
+		this._outgoingSendTail = run.catch(() => {});
+		return run;
 	}
 
 	/**
@@ -1233,16 +1249,34 @@ export class ZWaveProvisioningClient extends EventEmitter {
 									Math.min(32, receivedPayload.length),
 								);
 							}
-							const startTime = Date.now();
-							try {
-								const sender =
-									typeof mpAPI.withTXReport === "function"
-										? mpAPI.withTXReport()
-										: mpAPI;
-								const sendResult = await sender.sendData(
-									0x01fb,
-									responsePayload,
-								);
+							const sender =
+								typeof mpAPI.withTXReport === "function"
+									? mpAPI.withTXReport()
+									: mpAPI;
+							const sendOutcome = await this._runOutgoingSend(
+								async () => {
+									const startTime = Date.now();
+									try {
+										const result = await sender.sendData(
+											0x01fb,
+											responsePayload,
+										);
+										return {
+											success: true,
+											sendResult: result,
+											duration: Date.now() - startTime,
+										};
+									} catch (error) {
+										return {
+											success: false,
+											error,
+											duration: Date.now() - startTime,
+										};
+									}
+								},
+							);
+
+							if (sendOutcome.success) {
 								this.reportCommandActivity({
 									nodeId: node.id,
 									ccId: 0x91,
@@ -1250,10 +1284,10 @@ export class ZWaveProvisioningClient extends EventEmitter {
 									manufacturerId: 0x01fb,
 									payloadHex: responsePayload.toString("hex"),
 									success: true,
-									duration: Date.now() - startTime,
+									duration: sendOutcome.duration,
 									source: "auto_response",
 									direction: "outgoing",
-									txReport: sendResult?.txReport,
+									txReport: sendOutcome.sendResult?.txReport,
 								});
 								console.log(
 									`[MP Handler] ✅ Response sent to node ${
@@ -1262,7 +1296,7 @@ export class ZWaveProvisioningClient extends EventEmitter {
 										"hex",
 									)}`,
 								);
-							} catch (sendError) {
+							} else {
 								this.reportCommandActivity({
 									nodeId: node.id,
 									ccId: 0x91,
@@ -1270,12 +1304,12 @@ export class ZWaveProvisioningClient extends EventEmitter {
 									manufacturerId: 0x01fb,
 									payloadHex: responsePayload.toString("hex"),
 									success: false,
-									error: sendError.message,
-									duration: Date.now() - startTime,
+									error: sendOutcome.error.message,
+									duration: sendOutcome.duration,
 									source: "auto_response",
 									direction: "outgoing",
 								});
-								throw sendError;
+								throw sendOutcome.error;
 							}
 						}
 					} catch (error) {
