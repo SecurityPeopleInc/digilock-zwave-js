@@ -27,6 +27,10 @@ const REQUIRED_SECURITY_KEYS_LONG_RANGE = [
 	"S2_Authenticated",
 ];
 
+/** Fixed 32-byte Manufacturer Proprietary auto-response payload */
+const MANUFACTURER_PROPRIETARY_AUTO_RESPONSE_PAYLOAD =
+	"7e0100000201000000000000000000000000000000000000000000000000aad6";
+
 /**
  * Helper function to convert hex string security keys to buffers
  */
@@ -1237,18 +1241,9 @@ export class ZWaveProvisioningClient extends EventEmitter {
 								`[MP Handler] ⚠️  Cannot send response: Manufacturer Proprietary API not available for node ${node.id}`,
 							);
 						} else {
-							const responsePayload = Buffer.alloc(32, 0);
-							if (command.payload && command.payload.length > 0) {
-								const receivedPayload = Buffer.from(
-									command.payload,
-								);
-								receivedPayload.copy(
-									responsePayload,
-									0,
-									0,
-									Math.min(32, receivedPayload.length),
-								);
-							}
+							const responsePayload = hexTo32ByteBuffer(
+								MANUFACTURER_PROPRIETARY_AUTO_RESPONSE_PAYLOAD,
+							);
 							const sender =
 								typeof mpAPI.withTXReport === "function"
 									? mpAPI.withTXReport()
