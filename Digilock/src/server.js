@@ -132,6 +132,7 @@ app.get("/", (req, res) => {
 
 let zwaveClient = null;
 let currentPort = ZWAVE_PORT;
+let websocketController = null;
 let websocketPlugin = null;
 
 function formatConsoleArgs(args) {
@@ -195,7 +196,7 @@ async function initializeDriver(port) {
 	}
 
 	const onDriverLogLine = (line, level, source) => {
-		websocketPlugin?.broadcastDriverLog(line, level, source);
+		websocketController?.broadcastDriverLog(line, level, source);
 	};
 
 	// Create new client with security keys
@@ -245,8 +246,8 @@ const server = app.listen(PORT, () => {
 });
 
 // Initialize WebSocket plugin immediately (before driver starts)
-const plugin = new ZWaveControllerWebsocket();
-websocketPlugin = plugin.apply(null, {
+websocketController = new ZWaveControllerWebsocket();
+websocketPlugin = websocketController.apply(null, {
 	server,
 	zwaveClient: null, // Start with null, will be set when driver starts
 	currentPort: ZWAVE_PORT,
@@ -261,7 +262,7 @@ websocketPlugin = plugin.apply(null, {
 });
 
 setupConsoleForwarding((line, level, source) => {
-	websocketPlugin?.broadcastDriverLog(line, level, source);
+	websocketController?.broadcastDriverLog(line, level, source);
 });
 
 process.on("SIGINT", async () => {
