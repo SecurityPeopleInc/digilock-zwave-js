@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.2.1/ansi_up.min.js"></script>
     <style>
       /* Design System - Dark Mode First */
       :root {
@@ -795,6 +796,80 @@
         font-size: var(--font-size-sm);
       }
 
+      /* Terminal / Driver Log Styles */
+      .terminal-log-container {
+        display: flex;
+        flex-direction: column;
+        height: 80vh;
+        background: #0d0d0d;
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+      }
+
+      .terminal-log-header {
+        padding: var(--spacing-md);
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--spacing-md);
+      }
+
+      .terminal-log-header h3 {
+        margin: 0;
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .terminal-log-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+      }
+
+      .terminal-log-output {
+        flex: 1;
+        overflow-y: auto;
+        padding: var(--spacing-md);
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+          "Liberation Mono", monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #d4d4d4;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .terminal-log-empty {
+        text-align: center;
+        color: var(--text-tertiary);
+        padding: var(--spacing-2xl);
+        font-family: inherit;
+        font-size: var(--font-size-sm);
+      }
+
+      .terminal-log-status {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+        font-size: var(--font-size-sm);
+        color: var(--text-secondary);
+      }
+
+      .terminal-log-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-tertiary);
+      }
+
+      .terminal-log-status-dot.live {
+        background: var(--status-active);
+        box-shadow: 0 0 6px var(--status-active);
+      }
+
       /* Command Monitor Styles */
       .cmd-test-controls {
         display: flex;
@@ -1407,6 +1482,20 @@
           justify-content: space-between;
         }
 
+        .terminal-log-container {
+          height: 500px;
+        }
+
+        .terminal-log-header {
+          flex-direction: column;
+          gap: var(--spacing-sm);
+          align-items: flex-start;
+        }
+
+        .terminal-log-controls {
+          width: 100%;
+        }
+
         .cmd-test-stats {
           grid-template-columns: repeat(2, 1fr);
         }
@@ -1460,6 +1549,14 @@
           onclick="showSection('commands')"
         >
           <span>Commands</span>
+        </button>
+        <button
+          class="menu-item"
+          data-section="terminal-log"
+          aria-label="Terminal Log"
+          onclick="showSection('terminal-log')"
+        >
+          <span>Terminal Log</span>
         </button>
         <button
           class="menu-item"
@@ -1849,6 +1946,75 @@
         </div>
       </section>
 
+      <!-- Terminal Log Section -->
+      <section
+        id="section-terminal-log"
+        class="section-container"
+        aria-labelledby="terminal-log-heading"
+      >
+        <div class="header">
+          <h1 id="terminal-log-heading">Terminal Log</h1>
+          <p>
+            Live server and Z-Wave driver output in the same format as the
+            terminal. Click <strong>Start Live Log</strong> to begin receiving
+            logs over WebSocket.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="terminal-log-container">
+            <div class="terminal-log-header">
+              <div>
+                <h3>Driver &amp; Server Output</h3>
+                <div class="terminal-log-status" id="driverLogStatus">
+                  <span class="terminal-log-status-dot" id="driverLogStatusDot"></span>
+                  <span id="driverLogStatusText">Streaming stopped</span>
+                </div>
+              </div>
+              <div class="terminal-log-controls">
+                <button
+                  class="btn btn-primary"
+                  onclick="toggleDriverLogStream()"
+                  id="driverLogStreamBtn"
+                >
+                  Start Live Log
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="exportDriverLog()"
+                  id="exportDriverLogBtn"
+                  disabled
+                >
+                  Export Log
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="clearDriverLog()"
+                  id="clearDriverLogBtn"
+                  disabled
+                >
+                  Clear Log
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="toggleDriverLogAutoScroll()"
+                  id="driverLogAutoScrollBtn"
+                  disabled
+                >
+                  Auto-scroll: ON
+                </button>
+              </div>
+            </div>
+            <div class="terminal-log-output" id="driverLogOutput">
+              <div class="terminal-log-empty">
+                Click <strong>Start Live Log</strong> to receive terminal output
+                over WebSocket.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- WebSocket Log Section -->
       <section
         id="section-ws-log"
@@ -2104,6 +2270,17 @@
       let wsLogAutoScroll = true;
       const MAX_LOG_MESSAGES = 500;
 
+      // Terminal / driver log
+      let driverLogLines = [];
+      let driverLogAutoScroll = true;
+      let driverLogStreaming = false;
+      let driverLogStreamPending = false;
+      const MAX_DRIVER_LOG_LINES = 5000;
+      const driverLogAnsiUp = typeof AnsiUp !== "undefined" ? new AnsiUp() : null;
+      if (driverLogAnsiUp) {
+        driverLogAnsiUp.use_classes = false;
+      }
+
       // Command test monitor
       let commandTestActive = false;
       let commandTestStartedAt = null;
@@ -2170,7 +2347,14 @@
         ws.onmessage = (event) => {
           try {
             const message = JSON.parse(event.data);
-            addWSLogMessage("received", message);
+            if (
+              message.type !== "DRIVER_LOG" &&
+              message.type !== "DRIVER_LOG_HISTORY" &&
+              message.type !== "DRIVER_LOG_STREAM_STARTED" &&
+              message.type !== "DRIVER_LOG_STREAM_STOPPED"
+            ) {
+              addWSLogMessage("received", message);
+            }
             handleWebSocketMessage(message);
           } catch (error) {
             console.error("Error parsing WebSocket message:", error);
@@ -2186,6 +2370,7 @@
 
         ws.onclose = () => {
           console.log("WebSocket disconnected");
+          setDriverLogStreaming(false);
           addWSLogMessage("received", { type: "CONNECTION", message: "WebSocket disconnected" });
           showAlert("Disconnected from server. Reconnecting...", "info");
           // Reconnect after 3 seconds
@@ -2325,6 +2510,17 @@
             pulseFloorPlanNode(message.data?.nodeId);
             break;
 
+          case "DRIVER_LOG":
+            addDriverLogEntry(message);
+            break;
+
+          case "DRIVER_LOG_HISTORY":
+            if (Array.isArray(message.lines)) {
+              driverLogLines = message.lines.slice(-MAX_DRIVER_LOG_LINES);
+              renderDriverLog();
+            }
+            break;
+
           case "FLOOR_PLANS_UPDATED":
             if (message.data && Date.now() >= floorPlanIgnoreRemoteUntil) {
               applyFloorPlanState(message.data, true);
@@ -2395,6 +2591,10 @@
         );
         if (activeMenuItem) {
           activeMenuItem.classList.add("active");
+        }
+
+        if (sectionId !== "terminal-log" && driverLogStreaming) {
+          stopDriverLogStream();
         }
       }
 
@@ -3385,6 +3585,195 @@
             container.scrollTop = container.scrollHeight;
           }
         }
+      }
+
+      // Terminal / Driver Log Functions
+      function setDriverLogStreaming(active) {
+        driverLogStreaming = active;
+
+        const streamBtn = document.getElementById("driverLogStreamBtn");
+        const statusDot = document.getElementById("driverLogStatusDot");
+        const statusText = document.getElementById("driverLogStatusText");
+        const exportBtn = document.getElementById("exportDriverLogBtn");
+        const clearBtn = document.getElementById("clearDriverLogBtn");
+        const autoScrollBtn = document.getElementById("driverLogAutoScrollBtn");
+
+        if (streamBtn) {
+          streamBtn.textContent = active ? "Stop Live Log" : "Start Live Log";
+          streamBtn.classList.toggle("btn-primary", !active);
+          streamBtn.classList.toggle("btn-danger", active);
+          streamBtn.disabled = driverLogStreamPending;
+        }
+
+        if (statusDot) {
+          statusDot.classList.toggle("live", active);
+        }
+
+        if (statusText) {
+          statusText.textContent = active
+            ? "Streaming live"
+            : "Streaming stopped";
+        }
+
+        const controlsEnabled = active;
+        if (exportBtn) exportBtn.disabled = !controlsEnabled;
+        if (clearBtn) clearBtn.disabled = !controlsEnabled;
+        if (autoScrollBtn) autoScrollBtn.disabled = !controlsEnabled;
+
+        if (!active) {
+          driverLogLines = [];
+          renderDriverLog();
+        }
+      }
+
+      function updateDriverLogStreamButtonPending(pending) {
+        driverLogStreamPending = pending;
+        const streamBtn = document.getElementById("driverLogStreamBtn");
+        if (streamBtn) {
+          streamBtn.disabled = pending;
+          streamBtn.textContent = pending
+            ? "Please wait..."
+            : driverLogStreaming
+              ? "Stop Live Log"
+              : "Start Live Log";
+        }
+      }
+
+      async function startDriverLogStream() {
+        if (driverLogStreaming || driverLogStreamPending) {
+          return;
+        }
+
+        updateDriverLogStreamButtonPending(true);
+        try {
+          setDriverLogStreaming(true);
+          await sendWebSocketMessage("START_DRIVER_LOG_STREAM");
+          updateDriverLogStreamButtonPending(false);
+        } catch (error) {
+          setDriverLogStreaming(false);
+          updateDriverLogStreamButtonPending(false);
+          showAlert(`Failed to start log stream: ${error.message}`, "error");
+        }
+      }
+
+      async function stopDriverLogStream() {
+        if (!driverLogStreaming || driverLogStreamPending) {
+          return;
+        }
+
+        updateDriverLogStreamButtonPending(true);
+        try {
+          await sendWebSocketMessage("STOP_DRIVER_LOG_STREAM");
+          setDriverLogStreaming(false);
+          updateDriverLogStreamButtonPending(false);
+        } catch (error) {
+          updateDriverLogStreamButtonPending(false);
+          showAlert(`Failed to stop log stream: ${error.message}`, "error");
+        }
+      }
+
+      function toggleDriverLogStream() {
+        if (driverLogStreaming) {
+          stopDriverLogStream();
+        } else {
+          startDriverLogStream();
+        }
+      }
+
+      function stripAnsiCodes(text) {
+        return String(text).replace(/\x1b\[[0-9;]*m/g, "");
+      }
+
+      function formatDriverLogLineHtml(line) {
+        if (driverLogAnsiUp) {
+          return driverLogAnsiUp.ansi_to_html(line);
+        }
+        return escapeHtml(stripAnsiCodes(line));
+      }
+
+      function addDriverLogEntry(entry) {
+        if (!driverLogStreaming || !entry?.line) {
+          return;
+        }
+
+        driverLogLines.push({
+          line: entry.line,
+          level: entry.level || "info",
+          source: entry.source || "driver",
+          timestamp: entry.timestamp || new Date().toISOString(),
+        });
+
+        if (driverLogLines.length > MAX_DRIVER_LOG_LINES) {
+          driverLogLines = driverLogLines.slice(-MAX_DRIVER_LOG_LINES);
+        }
+
+        renderDriverLog();
+      }
+
+      function renderDriverLog() {
+        const container = document.getElementById("driverLogOutput");
+        if (!container) return;
+
+        if (driverLogLines.length === 0) {
+          container.innerHTML = driverLogStreaming
+            ? '<div class="terminal-log-empty">Waiting for log output...</div>'
+            : '<div class="terminal-log-empty">Click <strong>Start Live Log</strong> to receive terminal output over WebSocket.</div>';
+          return;
+        }
+
+        container.innerHTML = driverLogLines
+          .map((entry) => formatDriverLogLineHtml(entry.line))
+          .join("<br>");
+
+        if (driverLogAutoScroll) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+
+      function clearDriverLog() {
+        if (!driverLogStreaming) {
+          return;
+        }
+        if (confirm("Are you sure you want to clear the terminal log?")) {
+          driverLogLines = [];
+          renderDriverLog();
+        }
+      }
+
+      function toggleDriverLogAutoScroll() {
+        driverLogAutoScroll = !driverLogAutoScroll;
+        const btn = document.getElementById("driverLogAutoScrollBtn");
+        if (btn) {
+          btn.textContent = `Auto-scroll: ${driverLogAutoScroll ? "ON" : "OFF"}`;
+        }
+
+        if (driverLogAutoScroll) {
+          const container = document.getElementById("driverLogOutput");
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        }
+      }
+
+      function exportDriverLog() {
+        if (driverLogLines.length === 0) {
+          showAlert("No logs to export", "info");
+          return;
+        }
+
+        const text = driverLogLines
+          .map((entry) => stripAnsiCodes(entry.line))
+          .join("\n");
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `digilock-terminal-log-${timestamp}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       }
 
       // Command Test Monitor Functions

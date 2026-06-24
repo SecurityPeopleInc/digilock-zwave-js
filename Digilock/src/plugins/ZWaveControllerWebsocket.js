@@ -12,6 +12,7 @@ import {
 
 const MAX_COMMAND_TEST_EVENTS = 500;
 const MAX_COMMAND_TEST_CHART_POINTS = 300;
+const MAX_DRIVER_LOG_LINES = 5000;
 
 /**
  * WebSocket Server Plugin for ZWaveController
@@ -35,6 +36,108 @@ export class ZWaveControllerWebsocket extends Plugin {
 		this.commandMonitorLogDir = null;
 		this.floorPlanStore = null;
 		this.nodeMetadataStore = null;
+		this.driverLogLines = [];
+		this.driverLogSubscribers = new Set();
+	}
+
+	/**
+	 * @private
+	 */
+	_hasDriverLogSubscribers() {
+		return this.driverLogSubscribers.size > 0;
+	}
+
+	/**
+	 * @private
+	 */
+	_broadcastDriverLogToSubscribers(message) {
+		const data = JSON.stringify(message);
+		for (const client of this.driverLogSubscribers) {
+			if (client.readyState === 1) {
+				client.send(data);
+			}
+		}
+	}
+
+	/**
+	 * Record a terminal log line and send it to subscribed clients only.
+	 * @param {string} line - Formatted log line (may include ANSI color codes)
+	 * @param {string} [level] - Log level (debug, info, warn, error, etc.)
+	 * @param {string} [source] - "driver" for zwave-js logs, "console" for app output
+	 */
+	broadcastDriverLog(line, level = "info", source = "driver") {
+		if (!line || !this._hasDriverLogSubscribers()) {
+			return;
+		}
+
+		const entry = {
+			line,
+			level,
+			source,
+			timestamp: new Date().toISOString(),
+		};
+
+		this.driverLogLines.push(entry);
+		if (this.driverLogLines.length > MAX_DRIVER_LOG_LINES) {
+			this.driverLogLines.splice(
+				0,
+				this.driverLogLines.length - MAX_DRIVER_LOG_LINES,
+			);
+		}
+
+		this._broadcastDriverLogToSubscribers({
+			type: "DRIVER_LOG",
+			...entry,
+		});
+	}
+
+	/**
+	 * @private
+	 */
+	_subscribeDriverLog(client) {
+		this.driverLogSubscribers.add(client);
+	}
+
+	/**
+	 * @private
+	 */
+	_unsubscribeDriverLog(client) {
+		this.driverLogSubscribers.delete(client);
+		if (!this._hasDriverLogSubscribers()) {
+			this.driverLogLines = [];
+		}
+	}
+
+	/**
+	 * @private
+	 */
+	_sendDriverLogHistory(client) {
+		if (this.driverLogLines.length === 0) {
+			return;
+		}
+
+		this.sendToClient(client, {
+			type: "DRIVER_LOG_HISTORY",
+			lines: this.driverLogLines,
+			timestamp: new Date().toISOString(),
+		});
+	}
+
+	async handleStartDriverLogStream(client, requestId) {
+		this._subscribeDriverLog(client);
+		this._sendDriverLogHistory(client);
+		this.sendResponse(client, requestId, {
+			type: "DRIVER_LOG_STREAM_STARTED",
+			timestamp: new Date().toISOString(),
+		});
+	}
+
+	async handleStopDriverLogStream(client, requestId) {
+		this._unsubscribeDriverLog(client);
+		this.sendResponse(client, requestId, {
+			type: "DRIVER_LOG_STREAM_STOPPED",
+			timestamp: new Date().toISOString(),
+		});
 	}
 
 	/**
@@ -649,11 +752,13 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 			ws.on("close", () => {
 				console.log("WebSocket client disconnected");
+				this._unsubscribeDriverLog(ws);
 				this.clients.delete(ws);
 			});
 
 			ws.on("error", (error) => {
 				console.error("WebSocket error:", error);
+				this._unsubscribeDriverLog(ws);
 				this.clients.delete(ws);
 			});
 		});
@@ -768,6 +873,14 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 				case "STOP_COMMAND_TEST":
 					await this.handleStopCommandTest(client, requestId);
+					break;
+
+				case "START_DRIVER_LOG_STREAM":
+					await this.handleStartDriverLogStream(client, requestId);
+					break;
+
+				case "STOP_DRIVER_LOG_STREAM":
+					await this.handleStopDriverLogStream(client, requestId);
 					break;
 
 				case "GET_COMMAND_TEST_STATUS":

@@ -73,8 +73,10 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				level: options.logLevel || "debug",
 				enabled: true,
 				logToFile: false,
+				forceConsole: true,
 				nodeFilter: undefined,
 				filename: undefined,
+				transports: options.logTransports ?? [],
 			},
 			// Only include security keys if they have valid buffers
 			...(Object.keys(securityKeysBuffers).length > 0 && {

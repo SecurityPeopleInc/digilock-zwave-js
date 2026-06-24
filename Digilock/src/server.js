@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { ZWaveProvisioningClient } from "./zwave-client.js";
 import { ZWaveControllerWebsocket } from "./plugins/ZWaveControllerWebsocket.js";
+import { WebSocketLogTransport } from "./plugins/WebSocketLogTransport.js";
 import { FloorPlanStore } from "./floor-plan-store.js";
 import { NodeMetadataStore } from "./node-metadata-store.js";
 import { fileURLToPath } from "url";
@@ -133,6 +134,44 @@ let zwaveClient = null;
 let currentPort = ZWAVE_PORT;
 let websocketPlugin = null;
 
+function formatConsoleArgs(args) {
+	return args
+		.map((arg) => {
+			if (typeof arg === "string") {
+				return arg;
+			}
+			if (arg instanceof Error) {
+				return arg.stack || arg.message;
+			}
+			try {
+				return JSON.stringify(arg);
+			} catch {
+				return String(arg);
+			}
+		})
+		.join(" ");
+}
+
+function setupConsoleForwarding(onLine) {
+	for (const level of ["log", "info", "warn", "error"]) {
+		const original = console[level].bind(console);
+		console[level] = (...args) => {
+			original(...args);
+			const line = formatConsoleArgs(args);
+			if (line) {
+				const mappedLevel = level === "log" ? "info" : level;
+				onLine(line, mappedLevel, "console");
+			}
+		};
+	}
+}
+
+function createDriverLogTransport(onLine) {
+	return new WebSocketLogTransport((line, level) => {
+		onLine(line, level, "driver");
+	});
+}
+
 // const securityKeys = {
 // 	S2_Unauthenticated: "A0ADEA1A03E4ED41C1EB5AA6D477BF80",
 // 	S2_Authenticated: "7AD358BD306A785992C5F1F7044B7A2D",
@@ -155,6 +194,10 @@ async function initializeDriver(port) {
 		}
 	}
 
+	const onDriverLogLine = (line, level, source) => {
+		websocketPlugin?.broadcastDriverLog(line, level, source);
+	};
+
 	// Create new client with security keys
 	zwaveClient = new ZWaveProvisioningClient(port, {
 		cacheDir: CACHE_DIR,
@@ -163,6 +206,7 @@ async function initializeDriver(port) {
 		securityKeysLongRange: securityKeysLongRange,
 		deviceConfigPriorityDir: "./store/device-configs",
 		nodeMetadataStore,
+		logTransports: [createDriverLogTransport(onDriverLogLine)],
 	});
 
 	try {
@@ -214,6 +258,10 @@ websocketPlugin = plugin.apply(null, {
 	commandMonitorLogDir,
 	floorPlanStore,
 	nodeMetadataStore,
+});
+
+setupConsoleForwarding((line, level, source) => {
+	websocketPlugin?.broadcastDriverLog(line, level, source);
 });
 
 process.on("SIGINT", async () => {
