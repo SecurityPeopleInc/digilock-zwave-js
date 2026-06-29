@@ -1243,6 +1243,10 @@ export class ZWaveProvisioningClient extends EventEmitter {
 								`[MP Handler] ⚠️  Cannot send response: Manufacturer Proprietary API not available for node ${node.id}`,
 							);
 						} else {
+							await new Promise((resolve) =>
+								setTimeout(resolve, 2000),
+							);
+
 							const responsePayload = hexTo32ByteBuffer(
 								MANUFACTURER_PROPRIETARY_AUTO_RESPONSE_PAYLOAD,
 							);
