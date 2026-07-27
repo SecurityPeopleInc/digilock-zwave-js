@@ -10,6 +10,10 @@ import {
 	createManufacturerProprietarySender,
 	hexTo32ByteBuffer,
 } from "./manufacturer-proprietary.js";
+import {
+	buildDigilockResponse,
+	parseDigilockPayload,
+} from "./digilock-protocol.js";
 import { ensureCustomDeviceConfig } from "./device-config.js";
 import { ManufacturerProprietaryCC } from "../../packages/cc/src/cc/ManufacturerProprietaryCC.js";
 
@@ -27,10 +31,8 @@ const REQUIRED_SECURITY_KEYS_LONG_RANGE = [
 	"S2_Authenticated",
 ];
 
-/** Fixed 32-byte Manufacturer Proprietary auto-response payload */
-const MANUFACTURER_PROPRIETARY_AUTO_RESPONSE_PAYLOAD =
-	"7e0100000201000000000000000000000000000000000000000000000000aad6";
-
+/** Default manufacturer ID used when sending Digilock proprietary responses */
+const DIGILOCK_MANUFACTURER_ID = 0x01fb;
 /**
  * Helper function to convert hex string security keys to buffers
  */
@@ -55,7 +57,11 @@ export class ZWaveProvisioningClient extends EventEmitter {
 		this.driverReady = false;
 		this._mpSender = null; // Will be initialized after driver is ready
 		this._outgoingSendTail = Promise.resolve();
-
+		/** @type {"accept"|"reject"} Default decision for Digilock user requests */
+		this.digilockUserResponsePolicy = "accept";
+		/** In-memory Digilock communication log (newest last), capped */
+		this._digilockCommunicationLog = [];
+		this._digilockCommunicationLogMax = 500;
 		// Convert security keys to buffers
 		const securityKeysBuffers = convertSecurityKeys(
 			options.securityKeys || {},
@@ -1108,6 +1114,202 @@ export class ZWaveProvisioningClient extends EventEmitter {
 	}
 
 	/**
+	 * Sets how Digilock user authentication requests are answered.
+	 * @param {"accept"|"reject"} policy
+	 */
+	setDigilockUserResponsePolicy(policy) {
+		if (policy !== "accept" && policy !== "reject") {
+			throw new Error('policy must be "accept" or "reject"');
+		}
+		this.digilockUserResponsePolicy = policy;
+		this.emit("digilockUserResponsePolicyChanged", { policy });
+		return { policy };
+	}
+
+	/**
+	 * @returns {"accept"|"reject"}
+	 */
+	getDigilockUserResponsePolicy() {
+		return this.digilockUserResponsePolicy;
+	}
+
+	/**
+	 * @returns {object[]}
+	 */
+	getDigilockCommunicationLog() {
+		return [...this._digilockCommunicationLog];
+	}
+
+	clearDigilockCommunicationLog() {
+		this._digilockCommunicationLog = [];
+		this.emit("digilockCommunicationCleared");
+	}
+
+	/**
+	 * Records a Digilock protocol exchange and broadcasts it to listeners.
+	 * @param {object} entry
+	 * @returns {object}
+	 * @private
+	 */
+	_recordDigilockCommunication(entry) {
+		const recorded = {
+			id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+			timestamp: new Date().toISOString(),
+			...entry,
+		};
+		this._digilockCommunicationLog.push(recorded);
+		if (
+			this._digilockCommunicationLog.length >
+			this._digilockCommunicationLogMax
+		) {
+			this._digilockCommunicationLog =
+				this._digilockCommunicationLog.slice(
+					-this._digilockCommunicationLogMax,
+				);
+		}
+		this.emit("digilockCommunication", recorded);
+		return recorded;
+	}
+
+	/**
+	 * Sends a Digilock protocol response via Manufacturer Proprietary CC.
+	 * @param {object} params
+	 * @private
+	 */
+	async _sendDigilockProprietaryResponse({
+		node,
+		manufacturerId,
+		responseSpec,
+		requestId,
+	}) {
+		const sendManufacturerId = manufacturerId || DIGILOCK_MANUFACTURER_ID;
+		try {
+			console.log(
+				`[MP Handler] 📤 Sending ${responseSpec.label} to node ${node.id}`,
+			);
+
+			this._forceManufacturerProprietarySupport(node);
+
+			const mpAPI = node.commandClasses["Manufacturer Proprietary"];
+			if (!mpAPI || typeof mpAPI.sendData !== "function") {
+				console.warn(
+					`[MP Handler] ⚠️  Cannot send response: Manufacturer Proprietary API not available for node ${node.id}`,
+				);
+				this._recordDigilockCommunication({
+					direction: "outgoing",
+					nodeId: node.id,
+					manufacturerId: sendManufacturerId,
+					parsed: {
+						kind: responseSpec.kind,
+						label: responseSpec.label,
+						isRequest: false,
+						isResponse: true,
+						payloadHex: responseSpec.payloadHex,
+					},
+					payloadHex: responseSpec.payloadHex,
+					success: false,
+					error: "Manufacturer Proprietary API not available",
+					source: "auto_response",
+					inReplyTo: requestId,
+				});
+				return;
+			}
+
+			const responsePayload = hexTo32ByteBuffer(responseSpec.payloadHex);
+			const parsedResponse = parseDigilockPayload(responsePayload);
+			const sender =
+				typeof mpAPI.withTXReport === "function"
+					? mpAPI.withTXReport()
+					: mpAPI;
+			const sendOutcome = await this._runOutgoingSend(async () => {
+				const startTime = Date.now();
+				try {
+					const result = await sender.sendData(
+						sendManufacturerId,
+						responsePayload,
+					);
+					return {
+						success: true,
+						sendResult: result,
+						duration: Date.now() - startTime,
+					};
+				} catch (error) {
+					return {
+						success: false,
+						error,
+						duration: Date.now() - startTime,
+					};
+				}
+			});
+
+			if (sendOutcome.success) {
+				this.reportCommandActivity({
+					nodeId: node.id,
+					ccId: 0x91,
+					commandClass: "Manufacturer Proprietary",
+					manufacturerId: sendManufacturerId,
+					payloadHex: responsePayload.toString("hex"),
+					success: true,
+					duration: sendOutcome.duration,
+					source: "auto_response",
+					direction: "outgoing",
+					txReport: sendOutcome.sendResult?.txReport,
+					parsed: parsedResponse,
+				});
+				this._recordDigilockCommunication({
+					direction: "outgoing",
+					nodeId: node.id,
+					manufacturerId: sendManufacturerId,
+					parsed: parsedResponse,
+					payloadHex: responsePayload.toString("hex"),
+					success: true,
+					duration: sendOutcome.duration,
+					source: "auto_response",
+					inReplyTo: requestId,
+					txReport: sendOutcome.sendResult?.txReport,
+				});
+				console.log(
+					`[MP Handler] ✅ ${responseSpec.label} sent to node ${
+						node.id
+					}: ${responsePayload.toString("hex")}`,
+				);
+			} else {
+				this.reportCommandActivity({
+					nodeId: node.id,
+					ccId: 0x91,
+					commandClass: "Manufacturer Proprietary",
+					manufacturerId: sendManufacturerId,
+					payloadHex: responsePayload.toString("hex"),
+					success: false,
+					error: sendOutcome.error.message,
+					duration: sendOutcome.duration,
+					source: "auto_response",
+					direction: "outgoing",
+					parsed: parsedResponse,
+				});
+				this._recordDigilockCommunication({
+					direction: "outgoing",
+					nodeId: node.id,
+					manufacturerId: sendManufacturerId,
+					parsed: parsedResponse,
+					payloadHex: responsePayload.toString("hex"),
+					success: false,
+					error: sendOutcome.error.message,
+					duration: sendOutcome.duration,
+					source: "auto_response",
+					inReplyTo: requestId,
+				});
+				throw sendOutcome.error;
+			}
+		} catch (error) {
+			console.error(
+				`[MP Handler] ❌ Error sending ${responseSpec.label} to node ${node.id}:`,
+				error,
+			);
+		}
+	}
+
+	/**
 	 * Force Manufacturer Proprietary (0x91) support on a node even if it is not
 	 * reported in the NIF. This ensures zwave-js exposes the CC wrapper.
 	 * This is a minimal version used by the MP sender - full node handling is in ZWaveController.
@@ -1180,28 +1382,33 @@ export class ZWaveProvisioningClient extends EventEmitter {
 				command.constructor?.name === "ManufacturerProprietaryCC";
 
 			if (isManufacturerProprietary) {
+				const payloadBuffer = command.payload
+					? Buffer.from(command.payload)
+					: Buffer.alloc(0);
+				const parsed = parseDigilockPayload(payloadBuffer);
+				const manufacturerId =
+					command.manufacturerId ?? DIGILOCK_MANUFACTURER_ID;
+
 				const commandData = {
 					nodeId: node.id,
-					manufacturerId: command.manufacturerId,
-					payload: command.payload
-						? Array.from(Buffer.from(command.payload))
-						: null,
-					payloadLength: command.payload?.length || 0,
+					manufacturerId,
+					payload: Array.from(payloadBuffer),
+					payloadLength: payloadBuffer.length,
+					payloadHex: payloadBuffer.toString("hex"),
 					endpointIndex: command.endpointIndex || 0,
+					parsed,
 				};
 
 				console.log(
 					`[MP Handler] ✅ Received ManufacturerProprietaryCC command from node ${node.id}:`,
 					{
-						manufacturerId: commandData.manufacturerId
-							? `0x${commandData.manufacturerId
-									.toString(16)
-									.padStart(4, "0")}`
-							: "unknown",
+						manufacturerId: `0x${manufacturerId
+							.toString(16)
+							.padStart(4, "0")}`,
+						kind: parsed.kind,
+						label: parsed.label,
 						payload: commandData.payload,
-						payloadHex: commandData.payload
-							? Buffer.from(commandData.payload).toString("hex")
-							: null,
+						payloadHex: commandData.payloadHex,
 						payloadLength: commandData.payloadLength,
 						endpointIndex: commandData.endpointIndex,
 						commandType: command.constructor?.name,
@@ -1216,109 +1423,37 @@ export class ZWaveProvisioningClient extends EventEmitter {
 					nodeId: node.id,
 					ccId: 0x91,
 					commandClass: "Manufacturer Proprietary",
-					manufacturerId: commandData.manufacturerId,
-					payloadHex: commandData.payload
-						? Buffer.from(commandData.payload).toString("hex")
-						: "",
+					manufacturerId,
+					payloadHex: commandData.payloadHex,
 					payloadLength: commandData.payloadLength,
 					endpointIndex: commandData.endpointIndex,
 					success: true,
 					source: "node",
+					parsed,
 				});
 
-				// @remind Answer node back (MAYBE REMOVE)
-				// Send response for manufacturer ID 0x015b
-				if (isManufacturerProprietary) {
-					try {
-						console.log(
-							`[MP Handler] 📤 Sending response for manufacturer ID 0x015b to node ${node.id}`,
-						);
+				const requestEntry = this._recordDigilockCommunication({
+					direction: "incoming",
+					nodeId: node.id,
+					manufacturerId,
+					parsed,
+					payloadHex: commandData.payloadHex,
+					success: true,
+					source: "node",
+				});
 
-						this._forceManufacturerProprietarySupport(node);
-
-						const mpAPI =
-							node.commandClasses["Manufacturer Proprietary"];
-						if (!mpAPI || typeof mpAPI.sendData !== "function") {
-							console.warn(
-								`[MP Handler] ⚠️  Cannot send response: Manufacturer Proprietary API not available for node ${node.id}`,
-							);
-						} else {
-							await new Promise((resolve) =>
-								setTimeout(resolve, 2000),
-							);
-
-							const responsePayload = hexTo32ByteBuffer(
-								MANUFACTURER_PROPRIETARY_AUTO_RESPONSE_PAYLOAD,
-							);
-							const sender =
-								typeof mpAPI.withTXReport === "function"
-									? mpAPI.withTXReport()
-									: mpAPI;
-							const sendOutcome = await this._runOutgoingSend(
-								async () => {
-									const startTime = Date.now();
-									try {
-										const result = await sender.sendData(
-											0x01fb,
-											responsePayload,
-										);
-										return {
-											success: true,
-											sendResult: result,
-											duration: Date.now() - startTime,
-										};
-									} catch (error) {
-										return {
-											success: false,
-											error,
-											duration: Date.now() - startTime,
-										};
-									}
-								},
-							);
-
-							if (sendOutcome.success) {
-								this.reportCommandActivity({
-									nodeId: node.id,
-									ccId: 0x91,
-									commandClass: "Manufacturer Proprietary",
-									manufacturerId: 0x01fb,
-									payloadHex: responsePayload.toString("hex"),
-									success: true,
-									duration: sendOutcome.duration,
-									source: "auto_response",
-									direction: "outgoing",
-									txReport: sendOutcome.sendResult?.txReport,
-								});
-								console.log(
-									`[MP Handler] ✅ Response sent to node ${
-										node.id
-									} with payload: ${responsePayload.toString(
-										"hex",
-									)}`,
-								);
-							} else {
-								this.reportCommandActivity({
-									nodeId: node.id,
-									ccId: 0x91,
-									commandClass: "Manufacturer Proprietary",
-									manufacturerId: 0x01fb,
-									payloadHex: responsePayload.toString("hex"),
-									success: false,
-									error: sendOutcome.error.message,
-									duration: sendOutcome.duration,
-									source: "auto_response",
-									direction: "outgoing",
-								});
-								throw sendOutcome.error;
-							}
-						}
-					} catch (error) {
-						console.error(
-							`[MP Handler] ❌ Error sending response to node ${node.id}:`,
-							error,
-						);
-					}
+				// Protocol-aware auto-response over Manufacturer Proprietary
+				const responseSpec = buildDigilockResponse(
+					parsed,
+					this.digilockUserResponsePolicy,
+				);
+				if (responseSpec) {
+					await this._sendDigilockProprietaryResponse({
+						node,
+						manufacturerId,
+						responseSpec,
+						requestId: requestEntry.id,
+					});
 				}
 
 				return;

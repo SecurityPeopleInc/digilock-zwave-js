@@ -422,6 +422,29 @@ export class ZWaveControllerWebsocket extends Plugin {
 			});
 		});
 
+		this.zwaveClient.on("digilockCommunication", (entry) => {
+			this.broadcast({
+				type: "DIGILOCK_COMMUNICATION",
+				data: entry,
+				timestamp: entry.timestamp || new Date().toISOString(),
+			});
+		});
+
+		this.zwaveClient.on("digilockCommunicationCleared", () => {
+			this.broadcast({
+				type: "DIGILOCK_COMMUNICATION_CLEARED",
+				timestamp: new Date().toISOString(),
+			});
+		});
+
+		this.zwaveClient.on("digilockUserResponsePolicyChanged", (data) => {
+			this.broadcast({
+				type: "DIGILOCK_USER_RESPONSE_POLICY",
+				data,
+				timestamp: new Date().toISOString(),
+			});
+		});
+
 		this.zwaveClient.on("commandClassCommand", (commandData) => {
 			this.broadcast({
 				type: "COMMAND_CLASS_COMMAND",
@@ -857,6 +880,25 @@ export class ZWaveControllerWebsocket extends Plugin {
 
 				case "SEND_COMMAND":
 					await this.handleSendCommand(client, data, requestId);
+					break;
+
+				case "GET_DIGILOCK_COMMUNICATION":
+					await this.handleGetDigilockCommunication(client, requestId);
+					break;
+
+				case "CLEAR_DIGILOCK_COMMUNICATION":
+					await this.handleClearDigilockCommunication(
+						client,
+						requestId,
+					);
+					break;
+
+				case "SET_DIGILOCK_USER_RESPONSE_POLICY":
+					await this.handleSetDigilockUserResponsePolicy(
+						client,
+						data,
+						requestId,
+					);
 					break;
 
 				case "SEND_GENERIC_COMMAND":
@@ -1624,6 +1666,86 @@ export class ZWaveControllerWebsocket extends Plugin {
 				message:
 					error.message ||
 					"Failed to send custom Manufacturer Proprietary",
+			});
+		}
+	}
+
+	async handleGetDigilockCommunication(client, requestId) {
+		try {
+			if (!this.zwaveClient) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "Driver not started",
+				});
+				return;
+			}
+
+			this.sendResponse(client, requestId, {
+				type: "DIGILOCK_COMMUNICATION_SNAPSHOT",
+				data: {
+					entries: this.zwaveClient.getDigilockCommunicationLog(),
+					userResponsePolicy:
+						this.zwaveClient.getDigilockUserResponsePolicy(),
+				},
+				timestamp: new Date().toISOString(),
+			});
+		} catch (error) {
+			this.sendResponse(client, requestId, {
+				type: "ERROR",
+				message:
+					error.message || "Failed to get Digilock communication log",
+			});
+		}
+	}
+
+	async handleClearDigilockCommunication(client, requestId) {
+		try {
+			if (!this.zwaveClient) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "Driver not started",
+				});
+				return;
+			}
+
+			this.zwaveClient.clearDigilockCommunicationLog();
+			this.sendResponse(client, requestId, {
+				type: "DIGILOCK_COMMUNICATION_CLEARED",
+				timestamp: new Date().toISOString(),
+			});
+		} catch (error) {
+			this.sendResponse(client, requestId, {
+				type: "ERROR",
+				message:
+					error.message ||
+					"Failed to clear Digilock communication log",
+			});
+		}
+	}
+
+	async handleSetDigilockUserResponsePolicy(client, data, requestId) {
+		try {
+			if (!this.zwaveClient) {
+				this.sendResponse(client, requestId, {
+					type: "ERROR",
+					message: "Driver not started",
+				});
+				return;
+			}
+
+			const policy = data?.policy;
+			const result = this.zwaveClient.setDigilockUserResponsePolicy(policy);
+			this.sendResponse(client, requestId, {
+				type: "DIGILOCK_USER_RESPONSE_POLICY",
+				data: result,
+				timestamp: new Date().toISOString(),
+			});
+		} catch (error) {
+			this.sendResponse(client, requestId, {
+				type: "ERROR",
+				message:
+					error.message ||
+					"Failed to set Digilock user response policy",
 			});
 		}
 	}

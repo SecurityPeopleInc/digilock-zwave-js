@@ -1635,6 +1635,297 @@
           height: 50vh;
         }
       }
+
+      /* Digilock Communication Screen */
+      .comm-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: var(--spacing-lg);
+        margin-bottom: var(--spacing-xl);
+      }
+
+      .comm-policy {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-sm);
+      }
+
+      .comm-policy-label {
+        font-size: var(--font-size-sm);
+        color: var(--text-secondary);
+        font-weight: var(--font-weight-medium);
+      }
+
+      .comm-policy-toggle {
+        display: inline-flex;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+      }
+
+      .comm-policy-btn {
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        padding: var(--spacing-sm) var(--spacing-lg);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+
+      .comm-policy-btn.active.accept {
+        background: var(--status-active);
+        color: #fff;
+      }
+
+      .comm-policy-btn.active.reject {
+        background: var(--status-inactive);
+        color: #fff;
+      }
+
+      .comm-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-xl);
+      }
+
+      .comm-stat {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md) var(--spacing-lg);
+      }
+
+      .comm-stat-value {
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-bold);
+        line-height: 1.2;
+      }
+
+      .comm-stat-label {
+        font-size: var(--font-size-xs);
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-top: var(--spacing-xs);
+      }
+
+      .comm-stat.requests .comm-stat-value {
+        color: var(--status-connected);
+      }
+
+      .comm-stat.accepted .comm-stat-value {
+        color: var(--status-active);
+      }
+
+      .comm-stat.rejected .comm-stat-value {
+        color: var(--status-inactive);
+      }
+
+      .comm-stat.status .comm-stat-value {
+        color: var(--status-warning);
+      }
+
+      .comm-nodes-board {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: var(--spacing-lg);
+        align-items: start;
+      }
+
+      .comm-node-column {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 280px;
+        max-height: 70vh;
+      }
+
+      .comm-node-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--spacing-md);
+        padding: var(--spacing-md) var(--spacing-lg);
+        background: var(--bg-tertiary);
+        border-bottom: 1px solid var(--border-primary);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+
+      .comm-node-title {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .comm-node-subtitle {
+        font-size: var(--font-size-xs);
+        color: var(--text-tertiary);
+      }
+
+      .comm-node-count {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-secondary);
+        background: var(--bg-elevated);
+        border: 1px solid var(--border-secondary);
+        border-radius: 999px;
+        padding: 2px 10px;
+      }
+
+      .comm-node-timeline {
+        padding: var(--spacing-lg);
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-md);
+        flex: 1;
+      }
+
+      .comm-exchange {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-sm);
+        padding-bottom: var(--spacing-md);
+        border-bottom: 1px dashed var(--border-primary);
+      }
+
+      .comm-exchange:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      .comm-bubble {
+        border-radius: var(--radius-md);
+        padding: var(--spacing-md);
+        border: 1px solid var(--border-primary);
+        animation: fadeIn 0.2s ease-in;
+      }
+
+      .comm-bubble.request {
+        align-self: flex-start;
+        max-width: 95%;
+        background: var(--alert-info-bg);
+        border-color: var(--alert-info-border);
+      }
+
+      .comm-bubble.response {
+        align-self: flex-end;
+        max-width: 95%;
+        background: var(--bg-elevated);
+      }
+
+      .comm-bubble.response.accepted {
+        background: var(--alert-success-bg);
+        border-color: var(--alert-success-border);
+      }
+
+      .comm-bubble.response.rejected {
+        background: var(--alert-error-bg);
+        border-color: var(--alert-error-border);
+      }
+
+      .comm-bubble.response.status {
+        background: rgba(202, 138, 4, 0.12);
+        border-color: var(--status-warning);
+      }
+
+      .comm-bubble.response.failed {
+        opacity: 0.85;
+        border-style: dashed;
+      }
+
+      .comm-bubble-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--spacing-sm);
+        margin-bottom: var(--spacing-sm);
+      }
+
+      .comm-bubble-label {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .comm-bubble.request .comm-bubble-label {
+        color: var(--alert-info-text);
+      }
+
+      .comm-bubble.response.accepted .comm-bubble-label {
+        color: var(--alert-success-text);
+      }
+
+      .comm-bubble.response.rejected .comm-bubble-label {
+        color: var(--alert-error-text);
+      }
+
+      .comm-bubble.response.status .comm-bubble-label {
+        color: #fbbf24;
+      }
+
+      .comm-bubble-time {
+        font-size: var(--font-size-xs);
+        color: var(--text-tertiary);
+        white-space: nowrap;
+      }
+
+      .comm-bubble-direction {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-tertiary);
+        margin-bottom: var(--spacing-xs);
+      }
+
+      .comm-payload {
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        font-size: 11px;
+        line-height: 1.45;
+        color: var(--text-secondary);
+        word-break: break-all;
+        white-space: pre-wrap;
+      }
+
+      .comm-bubble-footer {
+        margin-top: var(--spacing-sm);
+        font-size: var(--font-size-xs);
+        color: var(--text-tertiary);
+      }
+
+      .comm-empty {
+        text-align: center;
+        color: var(--text-tertiary);
+        padding: var(--spacing-2xl);
+        border: 1px dashed var(--border-primary);
+        border-radius: var(--radius-lg);
+        background: var(--bg-secondary);
+      }
+
+      .comm-empty strong {
+        display: block;
+        color: var(--text-secondary);
+        margin-bottom: var(--spacing-sm);
+        font-size: var(--font-size-lg);
+      }
+
+      @media (max-width: 768px) {
+        .comm-nodes-board {
+          grid-template-columns: 1fr;
+        }
+
+        .comm-node-column {
+          max-height: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1680,6 +1971,14 @@
           onclick="showSection('commands')"
         >
           <span>Commands</span>
+        </button>
+        <button
+          class="menu-item"
+          data-section="communication"
+          aria-label="Communication"
+          onclick="showSection('communication')"
+        >
+          <span>Communication</span>
         </button>
         <button
           class="menu-item"
@@ -2077,6 +2376,92 @@
         </div>
       </section>
 
+      <!-- Digilock Communication Section -->
+      <section
+        id="section-communication"
+        class="section-container"
+        aria-labelledby="communication-heading"
+      >
+        <div class="header">
+          <h1 id="communication-heading">Communication</h1>
+          <p>
+            Live Digilock Manufacturer Proprietary traffic: node requests grouped
+            by lock, with the controller responses paired underneath.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="comm-controls">
+            <div class="comm-policy">
+              <span class="comm-policy-label">User request policy</span>
+              <div class="comm-policy-toggle" role="group" aria-label="User request policy">
+                <button
+                  type="button"
+                  class="comm-policy-btn accept active"
+                  id="commPolicyAcceptBtn"
+                  onclick="setDigilockUserResponsePolicy('accept')"
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  class="comm-policy-btn reject"
+                  id="commPolicyRejectBtn"
+                  onclick="setDigilockUserResponsePolicy('reject')"
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+            <button
+              class="btn btn-secondary"
+              type="button"
+              onclick="clearDigilockCommunication()"
+            >
+              Clear Log
+            </button>
+            <button
+              class="btn btn-secondary"
+              type="button"
+              onclick="loadDigilockCommunication()"
+            >
+              Refresh
+            </button>
+          </div>
+
+          <div class="comm-stats" aria-live="polite">
+            <div class="comm-stat requests">
+              <div class="comm-stat-value" id="commStatRequests">0</div>
+              <div class="comm-stat-label">Requests</div>
+            </div>
+            <div class="comm-stat accepted">
+              <div class="comm-stat-value" id="commStatAccepted">0</div>
+              <div class="comm-stat-label">Accepted</div>
+            </div>
+            <div class="comm-stat rejected">
+              <div class="comm-stat-value" id="commStatRejected">0</div>
+              <div class="comm-stat-label">Rejected</div>
+            </div>
+            <div class="comm-stat status">
+              <div class="comm-stat-value" id="commStatStatus">0</div>
+              <div class="comm-stat-label">Status replies</div>
+            </div>
+            <div class="comm-stat">
+              <div class="comm-stat-value" id="commStatNodes">0</div>
+              <div class="comm-stat-label">Nodes</div>
+            </div>
+          </div>
+
+          <div id="commNodesBoard" class="comm-nodes-board">
+            <div class="comm-empty">
+              <strong>Waiting for lock traffic</strong>
+              User and status requests from nodes will appear here, grouped by
+              node, with the controller response shown for each exchange.
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Terminal Log Section -->
       <section
         id="section-terminal-log"
@@ -2454,6 +2839,11 @@
       let floorPlanSaveTimer = null;
       let floorPlanIgnoreRemoteUntil = 0;
 
+      // Digilock Communication log
+      let digilockCommEntries = [];
+      let digilockUserResponsePolicy = "accept";
+      const MAX_DIGILOCK_COMM_ENTRIES = 500;
+
       // Initialize WebSocket connection
       function initWebSocket() {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -2473,6 +2863,7 @@
           loadNodes();
           syncCommandTestStatus();
           loadFloorPlans();
+          loadDigilockCommunication();
         };
 
         ws.onmessage = (event) => {
@@ -2538,6 +2929,7 @@
             loadProvisioningEntries();
             loadNodes();
             loadCommandClasses();
+            loadDigilockCommunication();
             break;
 
           case "START_SUCCESS":
@@ -2639,6 +3031,38 @@
           case "MANUFACTURER_PROPRIETARY_COMMAND":
           case "COMMAND_CLASS_COMMAND":
             pulseFloorPlanNode(message.data?.nodeId);
+            break;
+
+          case "DIGILOCK_COMMUNICATION":
+            if (message.data) {
+              addDigilockCommunicationEntry(message.data);
+              pulseFloorPlanNode(message.data.nodeId);
+            }
+            break;
+
+          case "DIGILOCK_COMMUNICATION_CLEARED":
+            digilockCommEntries = [];
+            renderDigilockCommunication();
+            break;
+
+          case "DIGILOCK_USER_RESPONSE_POLICY":
+            if (message.data?.policy) {
+              digilockUserResponsePolicy = message.data.policy;
+              updateDigilockPolicyButtons();
+            }
+            break;
+
+          case "DIGILOCK_COMMUNICATION_SNAPSHOT":
+            if (message.data) {
+              digilockCommEntries = Array.isArray(message.data.entries)
+                ? message.data.entries.slice(-MAX_DIGILOCK_COMM_ENTRIES)
+                : [];
+              if (message.data.userResponsePolicy) {
+                digilockUserResponsePolicy = message.data.userResponsePolicy;
+              }
+              updateDigilockPolicyButtons();
+              renderDigilockCommunication();
+            }
             break;
 
           case "DRIVER_LOG":
@@ -3454,8 +3878,360 @@
         }
       }
 
+      // ---- Digilock Communication screen ----
+
+      function formatCommPayloadHex(hex) {
+        if (!hex || typeof hex !== "string") {
+          return "";
+        }
+        const normalized = hex.replace(/\s+/g, "").toUpperCase();
+        const pairs = normalized.match(/.{1,2}/g) || [];
+        const lines = [];
+        for (let i = 0; i < pairs.length; i += 16) {
+          lines.push(pairs.slice(i, i + 16).join(", "));
+        }
+        return lines.join("\n");
+      }
+
+      function formatCommTime(iso) {
+        if (!iso) {
+          return "";
+        }
+        try {
+          return new Date(iso).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+        } catch {
+          return iso;
+        }
+      }
+
+      function getCommResponseTone(kind) {
+        if (kind === "accepted_response") {
+          return "accepted";
+        }
+        if (kind === "rejected_response") {
+          return "rejected";
+        }
+        if (kind === "status_response") {
+          return "status";
+        }
+        return "";
+      }
+
+      function updateDigilockPolicyButtons() {
+        const acceptBtn = document.getElementById("commPolicyAcceptBtn");
+        const rejectBtn = document.getElementById("commPolicyRejectBtn");
+        if (!acceptBtn || !rejectBtn) {
+          return;
+        }
+        acceptBtn.classList.toggle(
+          "active",
+          digilockUserResponsePolicy === "accept"
+        );
+        rejectBtn.classList.toggle(
+          "active",
+          digilockUserResponsePolicy === "reject"
+        );
+      }
+
+      function addDigilockCommunicationEntry(entry) {
+        if (!entry) {
+          return;
+        }
+        const exists = digilockCommEntries.some((e) => e.id && e.id === entry.id);
+        if (exists) {
+          return;
+        }
+        digilockCommEntries.push(entry);
+        if (digilockCommEntries.length > MAX_DIGILOCK_COMM_ENTRIES) {
+          digilockCommEntries = digilockCommEntries.slice(
+            -MAX_DIGILOCK_COMM_ENTRIES
+          );
+        }
+        renderDigilockCommunication();
+      }
+
+      function buildDigilockExchanges(entries) {
+        const byId = new Map(entries.map((e) => [e.id, e]));
+        const usedResponseIds = new Set();
+        const exchanges = [];
+
+        for (const entry of entries) {
+          if (entry.direction !== "incoming") {
+            continue;
+          }
+          const response = entries.find(
+            (r) =>
+              r.direction === "outgoing" &&
+              r.inReplyTo === entry.id &&
+              !usedResponseIds.has(r.id)
+          );
+          if (response) {
+            usedResponseIds.add(response.id);
+          }
+          exchanges.push({ request: entry, response: response || null });
+        }
+
+        for (const entry of entries) {
+          if (
+            entry.direction === "outgoing" &&
+            !usedResponseIds.has(entry.id) &&
+            !(entry.inReplyTo && byId.has(entry.inReplyTo))
+          ) {
+            exchanges.push({ request: null, response: entry });
+          }
+        }
+
+        exchanges.sort((a, b) => {
+          const ta = new Date(
+            a.request?.timestamp || a.response?.timestamp || 0
+          ).getTime();
+          const tb = new Date(
+            b.request?.timestamp || b.response?.timestamp || 0
+          ).getTime();
+          return ta - tb;
+        });
+
+        return exchanges;
+      }
+
+      function renderCommBubble(entry, role) {
+        if (!entry) {
+          return "";
+        }
+        const kind = entry.parsed?.kind || "unknown";
+        const label = entry.parsed?.label || "Proprietary Frame";
+        const tone =
+          role === "response" ? getCommResponseTone(kind) : "";
+        const failedClass = entry.success === false ? " failed" : "";
+        const manufacturer =
+          entry.manufacturerId != null
+            ? `0x${Number(entry.manufacturerId)
+                .toString(16)
+                .padStart(4, "0")}`
+            : "";
+        const duration =
+          entry.duration != null ? `${entry.duration} ms` : "";
+        const footerParts = [
+          manufacturer ? `Mfr ${manufacturer}` : null,
+          duration,
+          entry.success === false
+            ? entry.error || "Send failed"
+            : null,
+          entry.parsed?.credentialHex
+            ? `Cred ${entry.parsed.credentialHex.toUpperCase()}`
+            : null,
+        ].filter(Boolean);
+
+        return `
+          <div class="comm-bubble ${role} ${tone}${failedClass}">
+            <div class="comm-bubble-direction">${
+              role === "request" ? "Node → Controller" : "Controller → Node"
+            }</div>
+            <div class="comm-bubble-meta">
+              <span class="comm-bubble-label">${label}</span>
+              <span class="comm-bubble-time">${formatCommTime(
+                entry.timestamp
+              )}</span>
+            </div>
+            <div class="comm-payload">${formatCommPayloadHex(
+              entry.payloadHex || entry.parsed?.payloadHex || ""
+            )}</div>
+            ${
+              footerParts.length
+                ? `<div class="comm-bubble-footer">${footerParts.join(
+                    " · "
+                  )}</div>`
+                : ""
+            }
+          </div>
+        `;
+      }
+
+      function renderDigilockCommunication() {
+        const board = document.getElementById("commNodesBoard");
+        if (!board) {
+          return;
+        }
+
+        const requests = digilockCommEntries.filter(
+          (e) => e.direction === "incoming"
+        ).length;
+        const accepted = digilockCommEntries.filter(
+          (e) =>
+            e.direction === "outgoing" &&
+            e.parsed?.kind === "accepted_response" &&
+            e.success !== false
+        ).length;
+        const rejected = digilockCommEntries.filter(
+          (e) =>
+            e.direction === "outgoing" &&
+            e.parsed?.kind === "rejected_response" &&
+            e.success !== false
+        ).length;
+        const statusReplies = digilockCommEntries.filter(
+          (e) =>
+            e.direction === "outgoing" &&
+            e.parsed?.kind === "status_response" &&
+            e.success !== false
+        ).length;
+
+        const byNode = new Map();
+        for (const entry of digilockCommEntries) {
+          const nodeId = entry.nodeId ?? "?";
+          if (!byNode.has(nodeId)) {
+            byNode.set(nodeId, []);
+          }
+          byNode.get(nodeId).push(entry);
+        }
+
+        const setStat = (id, value) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.textContent = String(value);
+          }
+        };
+        setStat("commStatRequests", requests);
+        setStat("commStatAccepted", accepted);
+        setStat("commStatRejected", rejected);
+        setStat("commStatStatus", statusReplies);
+        setStat("commStatNodes", byNode.size);
+
+        if (byNode.size === 0) {
+          board.innerHTML = `
+            <div class="comm-empty">
+              <strong>Waiting for lock traffic</strong>
+              User and status requests from nodes will appear here, grouped by
+              node, with the controller response shown for each exchange.
+            </div>
+          `;
+          return;
+        }
+
+        const nodeIds = [...byNode.keys()].sort((a, b) => Number(a) - Number(b));
+        board.innerHTML = nodeIds
+          .map((nodeId) => {
+            const entries = byNode.get(nodeId);
+            const exchanges = buildDigilockExchanges(entries);
+            const exchangeHtml = exchanges
+              .map(
+                (ex) => `
+              <div class="comm-exchange">
+                ${
+                  ex.request
+                    ? renderCommBubble(ex.request, "request")
+                    : ""
+                }
+                ${
+                  ex.response
+                    ? renderCommBubble(ex.response, "response")
+                    : `<div class="comm-bubble response" style="opacity:0.6">
+                        <div class="comm-bubble-label">Awaiting response…</div>
+                      </div>`
+                }
+              </div>
+            `
+              )
+              .join("");
+
+            return `
+              <article class="comm-node-column" data-node-id="${nodeId}">
+                <header class="comm-node-header">
+                  <div>
+                    <div class="comm-node-title">Node ${nodeId}</div>
+                    <div class="comm-node-subtitle">Manufacturer Proprietary</div>
+                  </div>
+                  <span class="comm-node-count">${exchanges.length} exchange${
+              exchanges.length === 1 ? "" : "s"
+            }</span>
+                </header>
+                <div class="comm-node-timeline">
+                  ${
+                    exchangeHtml ||
+                    `<div class="comm-empty">No exchanges yet</div>`
+                  }
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+
+        // Keep each node timeline scrolled to the latest exchange
+        board.querySelectorAll(".comm-node-timeline").forEach((timeline) => {
+          timeline.scrollTop = timeline.scrollHeight;
+        });
+      }
+
+      async function loadDigilockCommunication() {
+        try {
+          const result = await sendWebSocketMessage(
+            "GET_DIGILOCK_COMMUNICATION"
+          );
+          digilockCommEntries = Array.isArray(result.data?.entries)
+            ? result.data.entries.slice(-MAX_DIGILOCK_COMM_ENTRIES)
+            : [];
+          if (result.data?.userResponsePolicy) {
+            digilockUserResponsePolicy = result.data.userResponsePolicy;
+          }
+          updateDigilockPolicyButtons();
+          renderDigilockCommunication();
+        } catch (error) {
+          console.warn(
+            "Failed to load Digilock communication log:",
+            error.message
+          );
+        }
+      }
+
+      async function clearDigilockCommunication() {
+        if (
+          !confirm(
+            "Clear the Digilock communication log on the server for all clients?"
+          )
+        ) {
+          return;
+        }
+        try {
+          await sendWebSocketMessage("CLEAR_DIGILOCK_COMMUNICATION");
+          digilockCommEntries = [];
+          renderDigilockCommunication();
+        } catch (error) {
+          showAlert(error.message || "Failed to clear communication log", "error");
+        }
+      }
+
+      async function setDigilockUserResponsePolicy(policy) {
+        try {
+          const result = await sendWebSocketMessage(
+            "SET_DIGILOCK_USER_RESPONSE_POLICY",
+            { policy }
+          );
+          digilockUserResponsePolicy =
+            result.data?.policy || policy;
+          updateDigilockPolicyButtons();
+          showAlert(
+            `User requests will be ${
+              digilockUserResponsePolicy === "reject"
+                ? "rejected"
+                : "accepted"
+            }`,
+            "success"
+          );
+        } catch (error) {
+          showAlert(
+            error.message || "Failed to update user response policy",
+            "error"
+          );
+        }
+      }
+
       // Initialize MP history on load
       renderMPHistory();
+      updateDigilockPolicyButtons();
+      renderDigilockCommunication();
 
       // Command Classes display
       let nodeCommandClasses = new Map(); // Map of nodeId -> commandClasses array
