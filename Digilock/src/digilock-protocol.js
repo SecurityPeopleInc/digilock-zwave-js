@@ -1,6 +1,10 @@
 /**
  * Digilock Manufacturer Proprietary (CC 0x91) 32-byte vendor protocol.
  *
+ * On air, Digilock places the 32-byte frame directly after CC 0x91
+ * (no separate Z-Wave manufacturer ID). Example accepted response:
+ *   91 7E 01 00 00 02 01 00 ... AA D6
+ *
  * Frame layout (32 bytes):
  *   [0]     0x7E  start-of-frame
  *   [1]     message type (0x01 = user auth, 0x02 = status, 0x03 = remote)
@@ -85,8 +89,9 @@ export function parseDigilockPayload(payload) {
 
 	// User request: 7E 01 .. 03 ...
 	if (messageType === 0x01 && opcode === 0x03) {
-		const credentialHex =
-			buf.length >= 16 ? buf.subarray(14, 16).toString("hex") : "";
+		const credentialHex = buf.length >= 16
+			? buf.subarray(14, 16).toString("hex")
+			: "";
 		const userNumber = KNOWN_USER_CREDENTIALS.get(credentialHex) ?? null;
 		return {
 			...base,
@@ -191,6 +196,57 @@ export function parseDigilockPayload(payload) {
 		messageType,
 		opcode,
 	};
+}
+
+/**
+ * Digilock frames are sent as the raw Manufacturer Proprietary CC payload
+ * (immediately after CC 0x91), without a separate Z-Wave manufacturer ID.
+ *
+ * zwave-js ManufacturerProprietaryCC.serialize always emits:
+ *   [mfr_hi][mfr_lo][data...]
+ * so we map the first two Digilock frame bytes into manufacturerId and the
+ * remainder into data. That produces on-air: 91 7E 01 00 00 02 01 ...
+ * instead of e.g. 91 00 FE 7E 01 00 00 02 01 ...
+ *
+ * @param {Buffer} frame - Full Digilock frame (typically 32 bytes, starts with 0x7E)
+ * @returns {{ manufacturerId: number, data: Buffer }}
+ */
+export function digilockFrameToManufacturerProprietaryArgs(frame) {
+	const buf = toBuffer(frame);
+	if (buf.length < 2) {
+		throw new Error(
+			`Digilock frame must be at least 2 bytes, got ${buf.length}`,
+		);
+	}
+	return {
+		manufacturerId: buf.readUInt16BE(0),
+		data: buf.subarray(2),
+	};
+}
+
+/**
+ * Reconstructs the Digilock frame from a parsed ManufacturerProprietaryCC.
+ * Handles both:
+ * - Digilock-native: CC payload IS the frame (zwave-js split 7E01 into manufacturerId)
+ * - Standard MP: manufacturer ID separate, command.payload already starts with 0x7E
+ *
+ * @param {{ manufacturerId?: number, payload?: Buffer|number[]|Uint8Array|null }} command
+ * @returns {Buffer}
+ */
+export function extractDigilockFrameFromMPCommand(command) {
+	const payload = toBuffer(command?.payload);
+	if (payload.length > 0 && payload[0] === 0x7e) {
+		return payload;
+	}
+	if (command?.manufacturerId != null) {
+		const prefix = Buffer.allocUnsafe(2);
+		prefix.writeUInt16BE(command.manufacturerId & 0xffff, 0);
+		const frame = Buffer.concat([prefix, payload]);
+		if (frame[0] === 0x7e) {
+			return frame;
+		}
+	}
+	return payload;
 }
 
 /**
