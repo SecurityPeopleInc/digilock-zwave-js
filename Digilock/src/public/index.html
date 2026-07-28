@@ -1730,6 +1730,19 @@
         color: var(--status-warning);
       }
 
+      .comm-stat.remote .comm-stat-value {
+        color: #a78bfa;
+      }
+
+      .comm-bubble.response.remote {
+        background: rgba(167, 139, 250, 0.12);
+        border-color: #7c3aed;
+      }
+
+      .comm-bubble.response.remote .comm-bubble-label {
+        color: #c4b5fd;
+      }
+
       .comm-nodes-board {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -2445,6 +2458,10 @@
             <div class="comm-stat status">
               <div class="comm-stat-value" id="commStatStatus">0</div>
               <div class="comm-stat-label">Status replies</div>
+            </div>
+            <div class="comm-stat remote">
+              <div class="comm-stat-value" id="commStatRemote">0</div>
+              <div class="comm-stat-label">Remote replies</div>
             </div>
             <div class="comm-stat">
               <div class="comm-stat-value" id="commStatNodes">0</div>
@@ -3918,6 +3935,9 @@
         if (kind === "status_response") {
           return "status";
         }
+        if (kind === "remote_response") {
+          return "remote";
+        }
         return "";
       }
 
@@ -4078,6 +4098,12 @@
             e.parsed?.kind === "status_response" &&
             e.success !== false
         ).length;
+        const remoteReplies = digilockCommEntries.filter(
+          (e) =>
+            e.direction === "outgoing" &&
+            e.parsed?.kind === "remote_response" &&
+            e.success !== false
+        ).length;
 
         const byNode = new Map();
         for (const entry of digilockCommEntries) {
@@ -4098,6 +4124,7 @@
         setStat("commStatAccepted", accepted);
         setStat("commStatRejected", rejected);
         setStat("commStatStatus", statusReplies);
+        setStat("commStatRemote", remoteReplies);
         setStat("commStatNodes", byNode.size);
 
         if (byNode.size === 0) {

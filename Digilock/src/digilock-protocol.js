@@ -3,10 +3,10 @@
  *
  * Frame layout (32 bytes):
  *   [0]     0x7E  start-of-frame
- *   [1]     message type (0x01 = user auth, 0x02 = status)
+ *   [1]     message type (0x01 = user auth, 0x02 = status, 0x03 = remote)
  *   [2..3]  reserved
- *   [4]     direction / opcode (0x03 = request, 0x02 = user response, 0x00 = status response)
- *   [5]     result for user responses (0x01 = accepted, 0x02 = rejected)
+ *   [4]     direction / opcode (0x03 = request, 0x02 = response, 0x00 = status response)
+ *   [5]     result for responses (0x01 = accepted, 0x02 = rejected / remote ack)
  *   [6..]   type-specific data
  *   [30]    0xAA  trailer marker
  *   [31]    checksum / trailer
@@ -19,6 +19,7 @@ export const DIGILOCK_RESPONSES = {
 	rejected:
 		"7e0100000202000000000000000000000000000000000000000000000000aad5",
 	status: "7e0200000000000000000000000000000000000000000000000000000000aad6",
+	remote: "7e0300000202000000000000000000000000000000000000000000000000aad7",
 };
 
 /** Known user credential fingerprints (bytes 14-15 of user requests) */
@@ -113,6 +114,19 @@ export function parseDigilockPayload(payload) {
 		};
 	}
 
+	// Remote request: 7E 03 .. 03 ...
+	if (messageType === 0x03 && opcode === 0x03) {
+		return {
+			...base,
+			kind: "remote_request",
+			label: "Remote Request",
+			isRequest: true,
+			isResponse: false,
+			messageType,
+			opcode,
+		};
+	}
+
 	// User accepted response: 7E 01 .. 02 01 ...
 	if (messageType === 0x01 && opcode === 0x02 && result === 0x01) {
 		return {
@@ -154,6 +168,20 @@ export function parseDigilockPayload(payload) {
 		};
 	}
 
+	// Remote response: 7E 03 .. 02 02 ...
+	if (messageType === 0x03 && opcode === 0x02) {
+		return {
+			...base,
+			kind: "remote_response",
+			label: "Remote Response",
+			isRequest: false,
+			isResponse: true,
+			messageType,
+			opcode,
+			result,
+		};
+	}
+
 	return {
 		...base,
 		kind: "unknown",
@@ -192,6 +220,14 @@ export function buildDigilockResponse(parsed, userDecision = "accept") {
 			kind: "status_response",
 			label: "Status Response",
 			payloadHex: DIGILOCK_RESPONSES.status,
+		};
+	}
+
+	if (parsed.kind === "remote_request") {
+		return {
+			kind: "remote_response",
+			label: "Remote Response",
+			payloadHex: DIGILOCK_RESPONSES.remote,
 		};
 	}
 
